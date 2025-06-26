@@ -137,12 +137,17 @@ class TestCustomerEndpoints:
     def test_get_customer_by_id(self, authenticated_client: TestClient):
         """Test getting specific customer by ID."""
         
-        # Create customer
-        create_response = authenticated_client.post("/api/v1/customers/", json=self.customer_data)
-        customer_id = create_response.json()["id"]
+        # Create customer with unique data
+        unique_data = self.customer_data.copy()
+        unique_data["email"] = "unique1@example.com"
+        unique_data["instagram_handle"] = "unique1_beauty"
+        
+        create_response = authenticated_client.post("/api/v1/customers/", json=unique_data)
+        data = create_response.json()
+        customer_id = data["id"]
         
         # Get customer by ID
-        response = client.get(f"/api/v1/customers/{customer_id}", headers=headers)
+        response = authenticated_client.get(f"/api/v1/customers/{customer_id}")
         
         assert response.status_code == 200
         data = response.json()
@@ -160,16 +165,20 @@ class TestCustomerEndpoints:
     def test_update_customer(self, authenticated_client: TestClient):
         """Test updating customer."""
         
-        # Create customer
-        create_response = authenticated_client.post("/api/v1/customers/", json=self.customer_data)
-        customer_id = create_response.json()["id"]
+        # Create customer with unique data
+        unique_data = self.customer_data.copy()
+        unique_data["email"] = "unique2@example.com"
+        unique_data["instagram_handle"] = "unique2_beauty"
+        
+        create_response = authenticated_client.post("/api/v1/customers/", json=unique_data)
+        data = create_response.json()
+        customer_id = data["id"]
         
         # Update customer
         update_data = {"first_name": "Janet", "is_vip": True}
-        response = client.put(
+        response = authenticated_client.put(
             f"/api/v1/customers/{customer_id}",
-            json=update_data,
-            headers=headers
+            json=update_data
         )
         
         assert response.status_code == 200
@@ -190,30 +199,39 @@ class TestCustomerEndpoints:
     def test_delete_customer(self, authenticated_client: TestClient):
         """Test deleting (deactivating) customer."""
         
-        # Create customer
-        create_response = authenticated_client.post("/api/v1/customers/", json=self.customer_data)
-        customer_id = create_response.json()["id"]
+        # Create customer with unique data
+        unique_data = self.customer_data.copy()
+        unique_data["email"] = "unique3@example.com"
+        unique_data["instagram_handle"] = "unique3_beauty"
+        
+        create_response = authenticated_client.post("/api/v1/customers/", json=unique_data)
+        data = create_response.json()
+        customer_id = data["id"]
         
         # Delete customer
-        response = client.delete(f"/api/v1/customers/{customer_id}", headers=headers)
+        response = authenticated_client.delete(f"/api/v1/customers/{customer_id}")
         
         assert response.status_code == 204
         
         # Verify customer is deactivated
-        get_response = client.get(f"/api/v1/customers/{customer_id}", headers=headers)
+        get_response = authenticated_client.get(f"/api/v1/customers/{customer_id}")
         assert get_response.json()["is_active"] == False
     
     def test_promote_to_vip(self, authenticated_client: TestClient):
         """Test promoting customer to VIP."""
         
-        # Create customer
-        create_response = authenticated_client.post("/api/v1/customers/", json=self.customer_data)
-        customer_id = create_response.json()["id"]
+        # Create customer with unique data
+        unique_data = self.customer_data.copy()
+        unique_data["email"] = "unique4@example.com"
+        unique_data["instagram_handle"] = "unique4_beauty"
+        
+        create_response = authenticated_client.post("/api/v1/customers/", json=unique_data)
+        data = create_response.json()
+        customer_id = data["id"]
         
         # Promote to VIP
-        response = client.put(
-            f"/api/v1/customers/{customer_id}/promote-vip",
-            headers=headers
+        response = authenticated_client.put(
+            f"/api/v1/customers/{customer_id}/promote-vip"
         )
         
         assert response.status_code == 200

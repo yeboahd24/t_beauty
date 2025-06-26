@@ -99,10 +99,11 @@ class TestProductEndpoints:
         
         # Create product
         create_response = authenticated_client.post("/api/v1/products/", json=self.product_data)
-        product_id = create_response.json()["id"]
+        data = create_response.json()
+        product_id = data["id"]
         
         # Get product by ID
-        response = client.get(f"/api/v1/products/{product_id}", headers=headers)
+        response = authenticated_client.get(f"/api/v1/products/{product_id}")
         
         assert response.status_code == 200
         data = response.json()
@@ -122,7 +123,8 @@ class TestProductEndpoints:
         
         # Create product
         create_response = authenticated_client.post("/api/v1/products/", json=self.product_data)
-        product_id = create_response.json()["id"]
+        data = create_response.json()
+        product_id = data["id"]
         
         # Update product
         update_data = {
@@ -130,10 +132,9 @@ class TestProductEndpoints:
             "price": 39.99,
             "is_active": False
         }
-        response = client.put(
+        response = authenticated_client.put(
             f"/api/v1/products/{product_id}",
-            json=update_data,
-            headers=headers
+            json=update_data
         )
         
         assert response.status_code == 200
@@ -157,15 +158,16 @@ class TestProductEndpoints:
         
         # Create product
         create_response = authenticated_client.post("/api/v1/products/", json=self.product_data)
-        product_id = create_response.json()["id"]
+        data = create_response.json()
+        product_id = data["id"]
         
         # Delete product
-        response = client.delete(f"/api/v1/products/{product_id}", headers=headers)
+        response = authenticated_client.delete(f"/api/v1/products/{product_id}")
         
         assert response.status_code == 204
         
         # Verify product is deleted
-        get_response = client.get(f"/api/v1/products/{product_id}", headers=headers)
+        get_response = authenticated_client.get(f"/api/v1/products/{product_id}")
         assert get_response.status_code == 404
     
     def test_get_product_stats(self, authenticated_client: TestClient):
@@ -191,7 +193,7 @@ class TestProductEndpoints:
         assert data["active_products"] >= 3
         assert data["total_quantity"] >= 150  # 50+51+52
     
-    def test_user_isolation(self, authenticated_client: TestClient):
+    def test_user_isolation(self, client: TestClient):
         """Test that users can only see their own products."""
         # Create first user and product
         user1_data = {"email": "user1@example.com", "password": "testpass123"}

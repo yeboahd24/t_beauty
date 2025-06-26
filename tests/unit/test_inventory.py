@@ -159,17 +159,21 @@ class TestInventoryEndpoints:
     def test_get_inventory_item_by_id(self, authenticated_client: TestClient):
         """Test getting specific inventory item by ID."""
         
-        # Create item
-        create_response = authenticated_client.post("/api/v1/inventory/", json=self.inventory_data)
-        item_id = create_response.json()["id"]
+        # Create item with unique data
+        unique_data = self.inventory_data.copy()
+        unique_data["sku"] = "UNIQUE-001"
+        
+        create_response = authenticated_client.post("/api/v1/inventory/", json=unique_data)
+        data = create_response.json()
+        item_id = data["id"]
         
         # Get item by ID
-        response = client.get(f"/api/v1/inventory/{item_id}", headers=headers)
+        response = authenticated_client.get(f"/api/v1/inventory/{item_id}")
         
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == item_id
-        assert data["sku"] == "LIP001"
+        assert data["sku"] == "UNIQUE-001"
     
     def test_get_inventory_item_not_found(self, authenticated_client: TestClient):
         """Test getting non-existent inventory item."""
@@ -182,9 +186,13 @@ class TestInventoryEndpoints:
     def test_update_inventory_item(self, authenticated_client: TestClient):
         """Test updating inventory item."""
         
-        # Create item
-        create_response = authenticated_client.post("/api/v1/inventory/", json=self.inventory_data)
-        item_id = create_response.json()["id"]
+        # Create item with unique data
+        unique_data = self.inventory_data.copy()
+        unique_data["sku"] = "UNIQUE-002"
+        
+        create_response = authenticated_client.post("/api/v1/inventory/", json=unique_data)
+        data = create_response.json()
+        item_id = data["id"]
         
         # Update item
         update_data = {
@@ -192,10 +200,9 @@ class TestInventoryEndpoints:
             "selling_price": 30.00,
             "is_featured": True
         }
-        response = client.put(
+        response = authenticated_client.put(
             f"/api/v1/inventory/{item_id}",
-            json=update_data,
-            headers=headers
+            json=update_data
         )
         
         assert response.status_code == 200
@@ -203,19 +210,22 @@ class TestInventoryEndpoints:
         assert data["name"] == "Updated Red Lipstick"
         assert data["selling_price"] == 30.00
         assert data["is_featured"] == True
-        assert data["sku"] == "LIP001"  # Unchanged
+        assert data["sku"] == "UNIQUE-002"  # Unchanged
     
     def test_adjust_stock(self, authenticated_client: TestClient):
         """Test adjusting stock quantity."""
         
-        # Create item
-        create_response = authenticated_client.post("/api/v1/inventory/", json=self.inventory_data)
-        item_id = create_response.json()["id"]
+        # Create item with unique data
+        unique_data = self.inventory_data.copy()
+        unique_data["sku"] = "UNIQUE-003"
+        
+        create_response = authenticated_client.post("/api/v1/inventory/", json=unique_data)
+        data = create_response.json()
+        item_id = data["id"]
         
         # Adjust stock
-        response = client.post(
-            f"/api/v1/inventory/{item_id}/adjust-stock?new_quantity=75&reason=Restock",
-            headers=headers
+        response = authenticated_client.post(
+            f"/api/v1/inventory/{item_id}/adjust-stock?new_quantity=75&reason=Restock"
         )
         
         assert response.status_code == 200
@@ -326,9 +336,13 @@ class TestInventoryEndpoints:
     def test_create_stock_movement(self, authenticated_client: TestClient):
         """Test creating stock movement."""
         
-        # Create item first
-        create_response = authenticated_client.post("/api/v1/inventory/", json=self.inventory_data)
-        item_id = create_response.json()["id"]
+        # Create item with unique data
+        unique_data = self.inventory_data.copy()
+        unique_data["sku"] = "UNIQUE-004"
+        
+        create_response = authenticated_client.post("/api/v1/inventory/", json=unique_data)
+        data = create_response.json()
+        item_id = data["id"]
         
         # Create stock movement
         movement_data = {
@@ -351,14 +365,17 @@ class TestInventoryEndpoints:
     def test_get_stock_movements(self, authenticated_client: TestClient):
         """Test getting stock movements for an item."""
         
-        # Create item
-        create_response = authenticated_client.post("/api/v1/inventory/", json=self.inventory_data)
-        item_id = create_response.json()["id"]
+        # Create item with unique data
+        unique_data = self.inventory_data.copy()
+        unique_data["sku"] = "UNIQUE-005"
+        
+        create_response = authenticated_client.post("/api/v1/inventory/", json=unique_data)
+        data = create_response.json()
+        item_id = data["id"]
         
         # Get stock movements
-        response = client.get(
-            f"/api/v1/inventory/{item_id}/stock-movements",
-            headers=headers
+        response = authenticated_client.get(
+            f"/api/v1/inventory/{item_id}/stock-movements"
         )
         
         assert response.status_code == 200
