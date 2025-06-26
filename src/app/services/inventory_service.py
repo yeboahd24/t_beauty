@@ -1,0 +1,308 @@
+"""
+Inventory service for T-Beauty stock management.
+"""
+from typing import Optional, List
+from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_, func
+from datetime import datetime
+from app.models.inventory import InventoryItem, StockMovement
+from app.schemas.inventory import InventoryItemCreate, InventoryItemUpdate, StockMovementCreate
+
+
+class InventoryService:
+    """Inventory service class for business logic."""
+    
+    @staticmethod
+    def get_by_id(db: Session, item_id: int) -> Optional[InventoryItem]:
+        """Get inventory item by ID."""
+        return db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
+    
+    @staticmethod
+    def get_by_sku(db: Session, sku: str) -> Optional[InventoryItem]:
+        """Get inventory item by SKU."""
+        return db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+    
+    @staticmethod
+    def get_all(
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        search: Optional[str] = None,
+        category: Optional[str] = None,
+        brand: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        low_stock_only: bool = False,
+        out_of_stock_only: bool = False
+    ) -> List[InventoryItem]:
+        """Get all inventory items with filtering and pagination."""
+        query = db.query(InventoryItem)
+        
+        # Apply filters
+        if is_active is not None:
+            query = query.filter(InventoryItem.is_active == is_active)
+        
+        if category:
+            query = query.filter(InventoryItem.category == category)
+        
+        if brand:
+            query = query.filter(InventoryItem.brand == brand)
+        
+        if low_stock_only:
+            query = query.filter(InventoryItem.current_stock <= InventoryItem.minimum_stock)
+        
+        if out_of_stock_only:
+            query = query.filter(InventoryItem.current_stock <= 0)
+        
+        if search:
+            search_filter = or_(
+                InventoryItem.name.contains(search),
+                InventoryItem.sku.contains(search),
+                InventoryItem.description.contains(search),
+                InventoryItem.brand.contains(search),
+                InventoryItem.category.contains(search)
+            )
+            query = query.filter(search_filter)
+        
+        return query.offset(skip).limit(limit).all()
+    
+    @staticmethod
+    def count(
+        db: Session,
+        search: Optional[str] = None,
+        category: Optional[str] = None,
+        brand: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        low_stock_only: bool = False,
+        out_of_stock_only: bool = False
+    ) -> int:
+        """Count inventory items with filtering."""
+        query = db.query(InventoryItem)
+        
+        if is_active is not None:
+            query = query.filter(InventoryItem.is_active == is_active)
+        
+        if category:
+            query = query.filter(InventoryItem.category == category)
+        
+        if brand:
+            query = query.filter(InventoryItem.brand == brand)
+        
+        if low_stock_only:
+            query = query.filter(InventoryItem.current_stock <= InventoryItem.minimum_stock)
+        
+        if out_of_stock_only:
+            query = query.filter(InventoryItem.current_stock <= 0)
+        
+        if search:
+            search_filter = or_(
+                InventoryItem.name.contains(search),
+                InventoryItem.sku.contains(search),
+                InventoryItem.description.contains(search),
+                InventoryItem.brand.contains(search),
+                InventoryItem.category.contains(search)
+            )
+            query = query.filter(search_filter)
+        
+        return query.count()
+    
+    @staticmethod
+    def create(db: Session, item_create: InventoryItemCreate) -> InventoryItem:
+        """Create a new inventory item."""
+        db_item = InventoryItem(**item_create.model_dump())
+        db.add(db_item)
+        db.commit()
+        db.refresh(db_item)
+        
+        # Create initial stock movement record
+        if db_item.current_stock > 0:
+            InventoryService.create_stock_movement(
+                db=db,
+                movement=StockMovementCreate(
+                    inventory_item_id=db_item.id,
+                    movement_type="in",
+                    quantity=db_item.current_stock,
+                    reason="Initial stock",
+                    unit_cost=db_item.cost_price
+                ),
+                user_id=None
+            )
+        
+        return db_item
+    
+    @staticmethod
+    def update(
+        db: Session,
+        item_id: int,
+        item_update: InventoryItemUpdate
+    ) -> Optional[InventoryItem]:
+        """Update an inventory item."""
+        db_item = InventoryService.get_by_id(db, item_id)
+        if not db_item:
+            return None
+        
+        update_data = item_update.model_dump(exclude_unset=True)
+        
+        # Handle stock changes separately
+        if "current_stock" in update_data:
+            new_stock = update_data.pop("current_stock")
+            InventoryService.adjust_stock(
+                db=db,
+                item_id=item_id,
+                new_quantity=new_stock,
+                reason="Manual adjustment",
+                user_id=None
+            )
+        
+        # Update other fields
+        for field, value in update_data.items():
+            setattr(db_item, field, value)
+        
+        db.commit()
+        db.refresh(db_item)
+        return db_item
+    
+    @staticmethod
+    def adjust_stock(
+        db: Session,
+        item_id: int,
+        new_quantity: int,
+        reason: str = "Stock adjustment",
+        user_id: Optional[int] = None
+    ) -> Optional[InventoryItem]:
+        """Adjust stock quantity and create movement record."""
+        db_item = InventoryService.get_by_id(db, item_id)
+        if not db_item:
+            return None
+        
+        previous_stock = db_item.current_stock
+        quantity_change = new_quantity - previous_stock
+        
+        # Update stock
+        db_item.current_stock = new_quantity
+        if new_quantity > previous_stock:
+            db_item.last_restocked = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(db_item)
+        
+        # Create stock movement record
+        movement_type = "in" if quantity_change > 0 else "out" if quantity_change < 0 else "adjustment"
+        InventoryService.create_stock_movement(
+            db=db,
+            movement=StockMovementCreate(
+                inventory_item_id=item_id,
+                movement_type=movement_type,
+                quantity=abs(quantity_change),
+                reason=reason
+            ),
+            user_id=user_id
+        )
+        
+        return db_item
+    
+    @staticmethod
+    def create_stock_movement(
+        db: Session,
+        movement: StockMovementCreate,
+        user_id: Optional[int] = None
+    ) -> StockMovement:
+        """Create a stock movement record."""
+        db_item = InventoryService.get_by_id(db, movement.inventory_item_id)
+        if not db_item:
+            raise ValueError("Inventory item not found")
+        
+        # Calculate stock changes
+        previous_stock = db_item.current_stock
+        if movement.movement_type == "in":
+            new_stock = previous_stock + movement.quantity
+        elif movement.movement_type == "out":
+            new_stock = previous_stock - movement.quantity
+        else:  # adjustment
+            new_stock = previous_stock
+        
+        db_movement = StockMovement(
+            **movement.model_dump(),
+            previous_stock=previous_stock,
+            new_stock=new_stock,
+            user_id=user_id
+        )
+        
+        db.add(db_movement)
+        db.commit()
+        db.refresh(db_movement)
+        return db_movement
+    
+    @staticmethod
+    def get_low_stock_items(db: Session) -> List[InventoryItem]:
+        """Get items that are low in stock."""
+        return db.query(InventoryItem).filter(
+            and_(
+                InventoryItem.current_stock <= InventoryItem.minimum_stock,
+                InventoryItem.is_active == True
+            )
+        ).all()
+    
+    @staticmethod
+    def get_out_of_stock_items(db: Session) -> List[InventoryItem]:
+        """Get items that are out of stock."""
+        return db.query(InventoryItem).filter(
+            and_(
+                InventoryItem.current_stock <= 0,
+                InventoryItem.is_active == True
+            )
+        ).all()
+    
+    @staticmethod
+    def get_reorder_suggestions(db: Session) -> List[InventoryItem]:
+        """Get items that need to be reordered."""
+        return db.query(InventoryItem).filter(
+            and_(
+                InventoryItem.current_stock <= InventoryItem.reorder_point,
+                InventoryItem.is_active == True
+            )
+        ).all()
+    
+    @staticmethod
+    def get_categories(db: Session) -> List[str]:
+        """Get all unique categories."""
+        result = db.query(InventoryItem.category).distinct().all()
+        return [category[0] for category in result if category[0]]
+    
+    @staticmethod
+    def get_brands(db: Session) -> List[str]:
+        """Get all unique brands."""
+        result = db.query(InventoryItem.brand).distinct().all()
+        return [brand[0] for brand in result if brand[0]]
+    
+    @staticmethod
+    def get_inventory_stats(db: Session) -> dict:
+        """Get inventory statistics."""
+        total_items = db.query(InventoryItem).count()
+        active_items = db.query(InventoryItem).filter(InventoryItem.is_active == True).count()
+        low_stock_items = db.query(InventoryItem).filter(
+            and_(
+                InventoryItem.current_stock <= InventoryItem.minimum_stock,
+                InventoryItem.is_active == True
+            )
+        ).count()
+        out_of_stock_items = db.query(InventoryItem).filter(
+            and_(
+                InventoryItem.current_stock <= 0,
+                InventoryItem.is_active == True
+            )
+        ).count()
+        
+        # Calculate total stock value
+        total_stock_value = db.query(
+            func.sum(InventoryItem.current_stock * InventoryItem.cost_price)
+        ).filter(InventoryItem.is_active == True).scalar() or 0
+        
+        return {
+            "total_items": total_items,
+            "active_items": active_items,
+            "low_stock_items": low_stock_items,
+            "out_of_stock_items": out_of_stock_items,
+            "total_stock_value": float(total_stock_value),
+            "categories": InventoryService.get_categories(db),
+            "brands": InventoryService.get_brands(db)
+        }

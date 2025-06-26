@@ -1,0 +1,212 @@
+# FastAPI Auth & Products API
+
+A modern, production-ready FastAPI application with JWT authentication and product management system.
+
+## 🚀 Features
+
+### 🔐 Authentication System
+- User registration with email and password
+- JWT token-based authentication
+- Secure password hashing with bcrypt
+- Protected routes and middleware
+- Token verification endpoints
+
+### 📦 Product Management
+- Full CRUD operations for products
+- Advanced search and filtering
+- Pagination support
+- User-specific product ownership
+- Product statistics and analytics
+
+### 🏗️ Architecture
+- Clean architecture with separation of concerns
+- Service layer for business logic
+- Repository pattern for data access
+- Comprehensive error handling
+- Input validation with Pydantic
+
+## 📁 Project Structure
+
+```
+├── src/app/                 # Main application package
+│   ├── api/                 # API layer
+│   │   └── v1/              # API version 1
+│   │       ├── endpoints/   # Route handlers
+│   │       └── api.py       # API router
+│   ├── core/                # Core functionality
+│   │   ├── config.py        # Configuration settings
+│   │   └── security.py      # Security utilities
+│   ├── db/                  # Database layer
+│   │   ├── base.py          # Database base
+│   │   └── session.py       # Database session
+│   ├── models/              # Database models
+│   │   ├── user.py          # User model
+│   │   └── product.py       # Product model
+│   ├── schemas/             # Pydantic schemas
+│   │   ├── auth.py          # Auth schemas
+│   │   ├── user.py          # User schemas
+│   │   └── product.py       # Product schemas
+│   ├── services/            # Business logic
+│   │   ├── user_service.py  # User service
+│   │   └── product_service.py # Product service
+│   ├── utils/               # Utility functions
+│   └── main.py              # FastAPI application
+├── tests/                   # Test suite
+│   ├── unit/                # Unit tests
+│   └── integration/         # Integration tests
+├── docs/                    # Documentation
+├── scripts/                 # Utility scripts
+├── config/                  # Configuration files
+├── main.py                  # Entry point
+├── requirements.txt         # Dependencies
+├── pyproject.toml          # Project configuration
+└── README.md               # This file
+```
+
+## Setup and Installation
+
+1. **Clone the repository and navigate to the project directory**
+
+2. **Create a virtual environment:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure environment variables:**
+   - Copy `.env` file and update the values:
+   ```
+   SECRET_KEY=your-secret-key-here-change-in-production
+   ALGORITHM=HS256
+   ACCESS_TOKEN_EXPIRE_MINUTES=30
+   DATABASE_URL=sqlite:///./app.db
+   ```
+
+5. **Run the application:**
+   ```bash
+   uvicorn main:app --reload
+   ```
+
+6. **Access the API:**
+   - API: http://localhost:8000
+   - Interactive docs: http://localhost:8000/docs
+   - Alternative docs: http://localhost:8000/redoc
+
+## API Endpoints
+
+### Authentication
+- `POST /auth/register` - Register a new user
+- `POST /auth/login` - Login with email/password
+- `POST /auth/token` - OAuth2 compatible token endpoint
+- `GET /auth/me` - Get current user info
+- `GET /auth/verify-token` - Verify token validity
+
+### Products
+- `POST /products/` - Create a new product
+- `GET /products/` - Get all products (with pagination and search)
+- `GET /products/{id}` - Get a specific product
+- `PUT /products/{id}` - Update a product
+- `DELETE /products/{id}` - Delete a product
+- `GET /products/stats/summary` - Get product statistics
+
+## Usage Examples
+
+### Register a new user
+```bash
+curl -X POST "http://localhost:8000/auth/register" \
+     -H "Content-Type: application/json" \
+     -d '{"email": "user@example.com", "password": "password123"}'
+```
+
+### Login
+```bash
+curl -X POST "http://localhost:8000/auth/login" \
+     -H "Content-Type: application/json" \
+     -d '{"email": "user@example.com", "password": "password123"}'
+```
+
+### Create a product (requires authentication)
+```bash
+curl -X POST "http://localhost:8000/products/" \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+     -d '{"name": "Sample Product", "description": "A sample product", "price": 29.99, "quantity": 100}'
+```
+
+### Get products with search and pagination
+```bash
+curl -X GET "http://localhost:8000/products/?page=1&size=10&search=sample" \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+## Database Models
+
+### User
+- `id`: Primary key
+- `email`: Unique email address
+- `hashed_password`: Bcrypt hashed password
+- `is_active`: User status
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
+### Product
+- `id`: Primary key
+- `name`: Product name
+- `description`: Product description
+- `price`: Product price
+- `quantity`: Available quantity
+- `is_active`: Product status
+- `owner_id`: Foreign key to User
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
+## Security Features
+
+- Password hashing using bcrypt
+- JWT token authentication
+- Token expiration
+- User-specific data access
+- CORS configuration
+- Input validation with Pydantic
+
+## Development
+
+### Running tests
+```bash
+# Add your test commands here
+pytest
+```
+
+### Database migrations
+```bash
+# If using Alembic for migrations
+alembic revision --autogenerate -m "Description"
+alembic upgrade head
+```
+
+## Production Deployment
+
+1. Update environment variables for production
+2. Use a production database (PostgreSQL, MySQL)
+3. Configure proper CORS origins
+4. Use a production WSGI server
+5. Set up SSL/TLS
+6. Configure logging
+7. Set up monitoring
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
