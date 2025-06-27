@@ -1,7 +1,7 @@
 """
 User service for business logic.
 """
-from typing import Optional
+from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.schemas.user import UserCreate
@@ -45,6 +45,22 @@ class UserService:
         if not verify_password(password, user.hashed_password):
             return None
         return user
+    
+    @staticmethod
+    def authenticate_with_details(db: Session, email: str, password: str) -> Tuple[Optional[User], str]:
+        """
+        Authenticate user with email and password, returning detailed error info.
+        
+        Returns:
+            tuple: (user_object_or_none, error_type)
+            error_type can be: 'success', 'user_not_found', 'invalid_password'
+        """
+        user = UserService.get_by_email(db, email)
+        if not user:
+            return None, 'user_not_found'
+        if not verify_password(password, user.hashed_password):
+            return None, 'invalid_password'
+        return user, 'success'
     
     @staticmethod
     def is_active(user: User) -> bool:

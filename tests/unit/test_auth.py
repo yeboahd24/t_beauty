@@ -74,10 +74,35 @@ def test_login_user(client: TestClient):
     assert data["token_type"] == "bearer"
 
 
-def test_login_invalid_credentials(client: TestClient):
-    """Test login with invalid credentials."""
+def test_login_nonexistent_user(client: TestClient):
+    """Test login with non-existent email."""
     response = client.post(
         "/api/v1/auth/login",
-        json={"email": "invalid@example.com", "password": "wrongpassword"}
+        json={"email": "nonexistent@example.com", "password": "somepassword"}
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert "No account found with this email address" in data["detail"]
+
+
+def test_login_incorrect_password(client: TestClient):
+    """Test login with incorrect password for existing user."""
+    # Register user first
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "test@example.com", 
+            "password": "correctpassword123",
+            "first_name": "John",
+            "last_name": "Doe"
+        }
+    )
+    
+    # Try to login with wrong password
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "test@example.com", "password": "wrongpassword"}
     )
     assert response.status_code == 401
+    data = response.json()
+    assert "Incorrect password" in data["detail"]

@@ -130,6 +130,11 @@ curl -X POST "http://localhost:8000/auth/login" \
      -d '{"email": "user@example.com", "password": "password123"}'
 ```
 
+**Login Error Responses:**
+- `404 Not Found`: No account exists with the provided email address
+- `401 Unauthorized`: Email exists but password is incorrect
+- `400 Bad Request`: User account is inactive
+
 ### Create a product (requires authentication)
 ```bash
 curl -X POST "http://localhost:8000/products/" \

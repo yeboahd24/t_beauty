@@ -36,11 +36,23 @@ async def register(user_create: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     """Login with email and password to get access token."""
-    user = UserService.authenticate(db, user_credentials.email, user_credentials.password)
-    if not user:
+    user, auth_result = UserService.authenticate_with_details(db, user_credentials.email, user_credentials.password)
+    
+    if auth_result == 'user_not_found':
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address"
+        )
+    elif auth_result == 'invalid_password':
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    elif not user:  # This shouldn't happen with the new method, but keeping as safety
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -63,11 +75,23 @@ async def login_for_access_token(
     db: Session = Depends(get_db)
 ):
     """OAuth2 compatible token login, takes username and password from form data."""
-    user = UserService.authenticate(db, form_data.username, form_data.password)
-    if not user:
+    user, auth_result = UserService.authenticate_with_details(db, form_data.username, form_data.password)
+    
+    if auth_result == 'user_not_found':
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address"
+        )
+    elif auth_result == 'invalid_password':
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    elif not user:  # This shouldn't happen with the new method, but keeping as safety
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

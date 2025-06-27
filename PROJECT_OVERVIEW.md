@@ -140,6 +140,11 @@ curl -X POST "http://localhost:8000/auth/login" \
      -H "Content-Type: application/json" \
      -d '{"email": "user@example.com", "password": "password123"}'
 
+# Login error responses:
+# - 404: No account with this email
+# - 401: Incorrect password
+# - 400: Inactive user account
+
 # Create product (with token)
 curl -X POST "http://localhost:8000/products/" \
      -H "Content-Type: application/json" \
