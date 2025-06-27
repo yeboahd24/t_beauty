@@ -10,7 +10,12 @@ class TestBusinessWorkflows:
     
     def get_auth_headers(self, client: TestClient) -> dict:
         """Get authentication headers."""
-        user_data = {"email": "staff@tbeauty.com", "password": "staffpass123"}
+        user_data = {
+            "email": "staff@tbeauty.com", 
+            "password": "staffpass123",
+            "first_name": "Staff",
+            "last_name": "User"
+        }
         # Try to register (ignore if user already exists)
         client.post("/api/v1/auth/register", json=user_data)
         

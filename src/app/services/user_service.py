@@ -27,6 +27,8 @@ class UserService:
         hashed_password = get_password_hash(user_create.password)
         db_user = User(
             email=user_create.email,
+            first_name=user_create.first_name,
+            last_name=user_create.last_name,
             hashed_password=hashed_password
         )
         db.add(db_user)

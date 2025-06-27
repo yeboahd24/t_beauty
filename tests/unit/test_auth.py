@@ -9,11 +9,18 @@ def test_register_user(client: TestClient):
     """Test user registration."""
     response = client.post(
         "/api/v1/auth/register",
-        json={"email": "test@example.com", "password": "testpassword123"}
+        json={
+            "email": "test@example.com", 
+            "password": "testpassword123",
+            "first_name": "John",
+            "last_name": "Doe"
+        }
     )
     assert response.status_code == 201
     data = response.json()
     assert data["email"] == "test@example.com"
+    assert data["first_name"] == "John"
+    assert data["last_name"] == "Doe"
     assert "id" in data
 
 
@@ -22,13 +29,23 @@ def test_register_duplicate_user(client: TestClient):
     # Register first user
     client.post(
         "/api/v1/auth/register",
-        json={"email": "test@example.com", "password": "testpassword123"}
+        json={
+            "email": "test@example.com", 
+            "password": "testpassword123",
+            "first_name": "John",
+            "last_name": "Doe"
+        }
     )
     
     # Try to register same user again
     response = client.post(
         "/api/v1/auth/register",
-        json={"email": "test@example.com", "password": "testpassword123"}
+        json={
+            "email": "test@example.com", 
+            "password": "testpassword123",
+            "first_name": "Jane",
+            "last_name": "Smith"
+        }
     )
     assert response.status_code == 400
 
@@ -38,7 +55,12 @@ def test_login_user(client: TestClient):
     # Register user first
     client.post(
         "/api/v1/auth/register",
-        json={"email": "test@example.com", "password": "testpassword123"}
+        json={
+            "email": "test@example.com", 
+            "password": "testpassword123",
+            "first_name": "John",
+            "last_name": "Doe"
+        }
     )
     
     # Login

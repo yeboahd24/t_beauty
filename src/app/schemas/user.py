@@ -9,6 +9,8 @@ from pydantic import BaseModel, EmailStr
 class UserBase(BaseModel):
     """Base user schema."""
     email: EmailStr
+    first_name: str
+    last_name: str
 
 
 class UserCreate(UserBase):
@@ -19,6 +21,8 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     """User update schema."""
     email: Optional[EmailStr] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     password: Optional[str] = None
     is_active: Optional[bool] = None
 
