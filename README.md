@@ -5,7 +5,7 @@ A modern, production-ready FastAPI application with JWT authentication and produ
 ## 🚀 Features
 
 ### 🔐 Authentication System
-- User registration with email and password
+- User registration with email, first name, last name, and password
 - JWT token-based authentication
 - Secure password hashing with bcrypt
 - Protected routes and middleware
@@ -120,7 +120,7 @@ A modern, production-ready FastAPI application with JWT authentication and produ
 ```bash
 curl -X POST "http://localhost:8000/auth/register" \
      -H "Content-Type: application/json" \
-     -d '{"email": "user@example.com", "password": "password123"}'
+     -d '{"email": "user@example.com", "first_name": "John", "last_name": "Doe", "password": "password123"}'
 ```
 
 ### Login
@@ -149,6 +149,8 @@ curl -X GET "http://localhost:8000/products/?page=1&size=10&search=sample" \
 ### User
 - `id`: Primary key
 - `email`: Unique email address
+- `first_name`: User's first name
+- `last_name`: User's last name
 - `hashed_password`: Bcrypt hashed password
 - `is_active`: User status
 - `created_at`: Creation timestamp

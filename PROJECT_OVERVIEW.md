@@ -7,7 +7,7 @@ This is a complete FastAPI application featuring JWT-based authentication and pr
 ## ✨ Key Features
 
 ### 🔐 Authentication System
-- **User Registration**: Email and password-based registration
+- **User Registration**: Email, first name, last name, and password-based registration
 - **JWT Authentication**: Secure token-based authentication
 - **Password Security**: Bcrypt hashing for password storage
 - **Token Management**: Configurable token expiration
@@ -133,7 +133,7 @@ python test_api.py
 # Register user
 curl -X POST "http://localhost:8000/auth/register" \
      -H "Content-Type: application/json" \
-     -d '{"email": "user@example.com", "password": "password123"}'
+     -d '{"email": "user@example.com", "first_name": "John", "last_name": "Doe", "password": "password123"}'
 
 # Login
 curl -X POST "http://localhost:8000/auth/login" \

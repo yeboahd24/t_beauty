@@ -20,7 +20,12 @@ class TestProductEndpoints:
     def get_auth_headers(self, client: TestClient) -> dict:
         """Get authentication headers."""
         # Register and login user
-        user_data = {"email": "test@example.com", "password": "testpass123"}
+        user_data = {
+            "email": "test@example.com", 
+            "password": "testpass123",
+            "first_name": "Test",
+            "last_name": "User"
+        }
         # Try to register (ignore if user already exists)
         client.post("/api/v1/auth/register", json=user_data)
         
@@ -196,7 +201,12 @@ class TestProductEndpoints:
     def test_user_isolation(self, client: TestClient):
         """Test that users can only see their own products."""
         # Create first user and product
-        user1_data = {"email": "user1@example.com", "password": "testpass123"}
+        user1_data = {
+            "email": "user1@example.com", 
+            "password": "testpass123",
+            "first_name": "User",
+            "last_name": "One"
+        }
         client.post("/api/v1/auth/register", json=user1_data)
         login1_response = client.post("/api/v1/auth/login", json=user1_data)
         token1 = login1_response.json()["access_token"]
@@ -205,7 +215,12 @@ class TestProductEndpoints:
         client.post("/api/v1/products/", json=self.product_data, headers=headers1)
         
         # Create second user and product
-        user2_data = {"email": "user2@example.com", "password": "testpass123"}
+        user2_data = {
+            "email": "user2@example.com", 
+            "password": "testpass123",
+            "first_name": "User",
+            "last_name": "Two"
+        }
         client.post("/api/v1/auth/register", json=user2_data)
         login2_response = client.post("/api/v1/auth/login", json=user2_data)
         token2 = login2_response.json()["access_token"]

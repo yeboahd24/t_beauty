@@ -125,7 +125,9 @@ def test_api_endpoints(base_url="http://127.0.0.1:8000"):
         # Test user registration
         user_data = {
             "email": "test@example.com",
-            "password": "testpassword123"
+            "password": "testpassword123",
+            "first_name": "Test",
+            "last_name": "User"
         }
         response = requests.post(f"{base_url}/api/v1/auth/register", json=user_data, timeout=5)
         if response.status_code not in [201, 400]:  # 400 if user already exists

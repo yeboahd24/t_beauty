@@ -63,7 +63,12 @@ def client(db):
 def authenticated_client(client):
     """Create authenticated test client."""
     # Register and login a test user
-    user_data = {"email": "testuser@tbeauty.com", "password": "testpass123"}
+    user_data = {
+        "email": "testuser@tbeauty.com", 
+        "password": "testpass123",
+        "first_name": "Test",
+        "last_name": "User"
+    }
     client.post("/api/v1/auth/register", json=user_data)
     
     login_response = client.post("/api/v1/auth/login", json=user_data)

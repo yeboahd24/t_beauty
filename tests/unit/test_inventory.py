@@ -33,7 +33,12 @@ class TestInventoryEndpoints:
     def get_auth_headers(self, client: TestClient) -> dict:
         """Get authentication headers."""
         # Register and login user
-        user_data = {"email": "test@example.com", "password": "testpass123"}
+        user_data = {
+            "email": "test@example.com", 
+            "password": "testpass123",
+            "first_name": "Test",
+            "last_name": "User"
+        }
         # Try to register (ignore if user already exists)
         client.post("/api/v1/auth/register", json=user_data)
         
