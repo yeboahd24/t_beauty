@@ -1,20 +1,34 @@
 #!/bin/bash
-# T-Beauty Application Startup Script with PostgreSQL
-# Copy this file to run_tbeauty.sh and update with your actual database credentials
+# T-Beauty Application Startup Script
+# This script loads environment variables from .env file and starts the application
 
 # Activate virtual environment
 source venv/bin/activate
 
-# Set your PostgreSQL database URL
-# Replace with your actual database credentials:
-# export DATABASE_URL="postgresql://username:password@host:port/database_name?sslmode=require"
-export DATABASE_URL="postgresql://your_username:your_password@your_host:your_port/tbeauty?sslmode=require"
+# Load environment variables from .env file
+if [ -f ".env" ]; then
+    echo "📋 Loading environment variables from .env file..."
+    export $(cat .env | grep -v '^#' | xargs)
+    echo "✅ Environment variables loaded"
+else
+    echo "⚠️  Warning: .env file not found!"
+    echo "   Please create a .env file with your configuration."
+    echo "   You can copy from config/.env.example"
+    exit 1
+fi
+
+# Verify DATABASE_URL is set
+if [ -z "$DATABASE_URL" ]; then
+    echo "❌ ERROR: DATABASE_URL not found in .env file"
+    echo "   Please add DATABASE_URL to your .env file"
+    exit 1
+fi
 
 # Clear any conflicting environment variables
 unset DATABASE_URL_OLD
 
 echo "🚀 Starting T-Beauty Business Management System"
-echo "📊 Database: PostgreSQL (tbeauty)"
+echo "📊 Database: $(echo $DATABASE_URL | sed 's/postgresql:\/\/[^@]*@/postgresql:\/\/***:***@/')"
 echo "🌐 API Documentation: http://localhost:8000/docs"
 echo "🔧 Admin Interface: http://localhost:8000/redoc"
 echo ""
