@@ -9,6 +9,9 @@ from app.api.v1.api import api_router
 from app.db.session import engine
 from app.db.base import Base
 
+# Import all models to register them with SQLAlchemy
+import app.models  # noqa: F401
+
 # Create database tables
 Base.metadata.create_all(bind=engine)
 

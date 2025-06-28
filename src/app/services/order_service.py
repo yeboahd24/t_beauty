@@ -175,7 +175,7 @@ class OrderService:
         # Add order items
         total_amount = 0.0
         for item_data in order_create.items:
-            order_item = OrderService._create_order_item(db, db_order.id, item_data)
+            order_item = OrderService._create_order_item(db, db_order.id, item_data, owner_id)
             total_amount += order_item.total_price
         
         # Update order totals
@@ -196,36 +196,54 @@ class OrderService:
         return OrderService.get_by_id(db, db_order.id, owner_id)
     
     @staticmethod
-    def _create_order_item(db: Session, order_id: int, item_data: OrderItemCreate) -> OrderItem:
-        """Create an order item and validate inventory."""
-        # Get inventory item
-        inventory_item = InventoryService.get_by_id(db, item_data.inventory_item_id)
-        if not inventory_item:
-            raise ValueError(f"Inventory item {item_data.inventory_item_id} not found")
+    def _create_order_item(db: Session, order_id: int, item_data: OrderItemCreate, owner_id: int) -> OrderItem:
+        """Create an order item for a product and attempt automatic allocation."""
+        from app.services.product_service import ProductService
         
-        # Check stock availability
-        if inventory_item.current_stock < item_data.quantity:
+        # Get product
+        product = ProductService.get_by_id(db, item_data.product_id, owner_id)
+        if not product:
+            raise ValueError(f"Product with ID {item_data.product_id} not found")
+        
+        # Check availability and get allocation plan
+        availability = ProductService.check_availability(
+            db=db,
+            product_id=item_data.product_id,
+            quantity=item_data.quantity,
+            owner_id=owner_id,
+            requested_color=item_data.requested_color,
+            requested_shade=item_data.requested_shade,
+            requested_size=item_data.requested_size
+        )
+        
+        if not availability["can_fulfill"]:
             raise ValueError(
-                f"Insufficient stock for {inventory_item.name}. "
-                f"Available: {inventory_item.current_stock}, Requested: {item_data.quantity}"
+                f"Insufficient stock for {product.name}. "
+                f"Available: {availability['total_available']}, Requested: {item_data.quantity}"
             )
         
-        # Calculate pricing
-        unit_price = item_data.unit_price or inventory_item.selling_price
+        # Calculate pricing (use product base price if not specified)
+        unit_price = item_data.unit_price or product.base_price
         total_price = (unit_price * item_data.quantity) - (item_data.discount_amount or 0.0)
         
-        # Create order item with product snapshot
+        # Create order item with product snapshot (no allocation yet)
         order_item = OrderItem(
             order_id=order_id,
-            inventory_item_id=item_data.inventory_item_id,
+            product_id=item_data.product_id,
+            inventory_item_id=None,  # Will be set during allocation
             quantity=item_data.quantity,
             unit_price=unit_price,
             discount_amount=item_data.discount_amount or 0.0,
             total_price=total_price,
-            product_name=inventory_item.name,
-            product_sku=inventory_item.sku or f"INV-{inventory_item.id}",
-            product_description=inventory_item.description,
-            notes=item_data.notes
+            product_name=product.name,
+            product_sku=product.sku,
+            product_description=product.description,
+            notes=item_data.notes,
+            requested_color=item_data.requested_color,
+            requested_shade=item_data.requested_shade,
+            requested_size=item_data.requested_size,
+            allocated_quantity=0,
+            fulfilled_quantity=0
         )
         
         db.add(order_item)
@@ -454,3 +472,183 @@ class OrderService:
                 })
         
         return impact_list
+    
+    @staticmethod
+    def allocate_inventory(db: Session, order_id: int, owner_id: int) -> Order:
+        """Allocate inventory for all items in an order."""
+        from app.services.product_service import ProductService
+        
+        order = OrderService.get_by_id(db, order_id, owner_id)
+        if not order:
+            raise ValueError("Order not found")
+        
+        if order.status != OrderStatus.PENDING:
+            raise ValueError(f"Cannot allocate inventory for order with status: {order.status}")
+        
+        allocation_results = []
+        
+        for order_item in order.order_items:
+            if order_item.is_fully_allocated:
+                continue  # Already allocated
+            
+            # Get available inventory for this product
+            available_inventory = ProductService.get_available_for_order(
+                db=db,
+                product_id=order_item.product_id,
+                owner_id=owner_id,
+                requested_color=order_item.requested_color,
+                requested_shade=order_item.requested_shade,
+                requested_size=order_item.requested_size
+            )
+            
+            remaining_to_allocate = order_item.quantity - order_item.allocated_quantity
+            allocated_this_round = 0
+            
+            for inventory_item in available_inventory:
+                if remaining_to_allocate <= 0:
+                    break
+                
+                # Allocate from this inventory item
+                allocate_qty = min(remaining_to_allocate, inventory_item.current_stock)
+                
+                if allocate_qty > 0:
+                    # Update inventory stock
+                    inventory_item.current_stock -= allocate_qty
+                    
+                    # Update order item allocation
+                    if order_item.inventory_item_id is None:
+                        # First allocation - set the primary inventory item
+                        order_item.inventory_item_id = inventory_item.id
+                        order_item.allocated_at = datetime.utcnow()
+                    
+                    order_item.allocated_quantity += allocate_qty
+                    allocated_this_round += allocate_qty
+                    remaining_to_allocate -= allocate_qty
+                    
+                    # Create stock movement record
+                    InventoryService.create_stock_movement(
+                        db=db,
+                        movement=StockMovementCreate(
+                            inventory_item_id=inventory_item.id,
+                            movement_type="out",
+                            quantity=allocate_qty,
+                            reason=f"Allocated to order {order.order_number}",
+                            reference_type="order",
+                            reference_id=order.id
+                        ),
+                        user_id=owner_id
+                    )
+            
+            allocation_results.append({
+                "order_item_id": order_item.id,
+                "product_name": order_item.product_name,
+                "requested_quantity": order_item.quantity,
+                "allocated_quantity": order_item.allocated_quantity,
+                "allocated_this_round": allocated_this_round,
+                "fully_allocated": order_item.is_fully_allocated
+            })
+        
+        # Check if all items are fully allocated
+        all_allocated = all(item.is_fully_allocated for item in order.order_items)
+        
+        if all_allocated:
+            order.status = OrderStatus.CONFIRMED
+            order.confirmed_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(order)
+        
+        return order
+    
+    @staticmethod
+    def fulfill_order_item(
+        db: Session, 
+        order_id: int, 
+        order_item_id: int, 
+        quantity_to_fulfill: int,
+        owner_id: int
+    ) -> OrderItem:
+        """Mark quantity as fulfilled for an order item."""
+        order = OrderService.get_by_id(db, order_id, owner_id)
+        if not order:
+            raise ValueError("Order not found")
+        
+        order_item = None
+        for item in order.order_items:
+            if item.id == order_item_id:
+                order_item = item
+                break
+        
+        if not order_item:
+            raise ValueError("Order item not found")
+        
+        # Validate fulfillment
+        max_fulfillable = order_item.allocated_quantity - order_item.fulfilled_quantity
+        if quantity_to_fulfill > max_fulfillable:
+            raise ValueError(
+                f"Cannot fulfill {quantity_to_fulfill} units. "
+                f"Maximum fulfillable: {max_fulfillable}"
+            )
+        
+        # Update fulfillment
+        order_item.fulfilled_quantity += quantity_to_fulfill
+        
+        if order_item.is_fully_fulfilled and not order_item.fulfilled_at:
+            order_item.fulfilled_at = datetime.utcnow()
+        
+        # Check if entire order is fulfilled
+        all_fulfilled = all(item.is_fully_fulfilled for item in order.order_items)
+        if all_fulfilled and order.status != OrderStatus.DELIVERED:
+            order.status = OrderStatus.SHIPPED
+            order.shipped_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(order_item)
+        
+        return order_item
+    
+    @staticmethod
+    def get_allocation_status(db: Session, order_id: int, owner_id: int) -> dict:
+        """Get detailed allocation status for an order."""
+        order = OrderService.get_by_id(db, order_id, owner_id)
+        if not order:
+            raise ValueError("Order not found")
+        
+        items_status = []
+        total_items = len(order.order_items)
+        fully_allocated_items = 0
+        fully_fulfilled_items = 0
+        
+        for order_item in order.order_items:
+            if order_item.is_fully_allocated:
+                fully_allocated_items += 1
+            if order_item.is_fully_fulfilled:
+                fully_fulfilled_items += 1
+            
+            items_status.append({
+                "order_item_id": order_item.id,
+                "product_name": order_item.product_name,
+                "product_sku": order_item.product_sku,
+                "quantity": order_item.quantity,
+                "allocated_quantity": order_item.allocated_quantity,
+                "fulfilled_quantity": order_item.fulfilled_quantity,
+                "pending_allocation": order_item.pending_allocation,
+                "pending_fulfillment": order_item.pending_fulfillment,
+                "is_fully_allocated": order_item.is_fully_allocated,
+                "is_fully_fulfilled": order_item.is_fully_fulfilled,
+                "inventory_item_id": order_item.inventory_item_id,
+                "allocated_at": order_item.allocated_at,
+                "fulfilled_at": order_item.fulfilled_at
+            })
+        
+        return {
+            "order_id": order.id,
+            "order_number": order.order_number,
+            "status": order.status,
+            "total_items": total_items,
+            "fully_allocated_items": fully_allocated_items,
+            "fully_fulfilled_items": fully_fulfilled_items,
+            "allocation_complete": fully_allocated_items == total_items,
+            "fulfillment_complete": fully_fulfilled_items == total_items,
+            "items": items_status
+        }

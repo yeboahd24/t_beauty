@@ -13,10 +13,14 @@ class ProductService:
     
     @staticmethod
     def get_by_id(db: Session, product_id: int, owner_id: int) -> Optional[Product]:
-        """Get product by ID and owner."""
+        """Get product by ID and owner with inventory information."""
         return (
             db.query(Product)
-            .options(joinedload(Product.brand), joinedload(Product.category))
+            .options(
+                joinedload(Product.brand), 
+                joinedload(Product.category),
+                joinedload(Product.inventory_items)
+            )
             .filter(and_(Product.id == product_id, Product.owner_id == owner_id))
             .first()
         )
@@ -37,21 +41,49 @@ class ProductService:
         owner_id: int, 
         skip: int = 0, 
         limit: int = 100,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        brand_id: Optional[int] = None,
+        category_id: Optional[int] = None,
+        is_active: Optional[bool] = None,
+        in_stock_only: bool = False
     ) -> List[Product]:
-        """Get all products for owner with pagination and search."""
+        """Get all products for owner with pagination, search and filtering."""
         query = (
             db.query(Product)
-            .options(joinedload(Product.brand), joinedload(Product.category))
+            .options(
+                joinedload(Product.brand), 
+                joinedload(Product.category),
+                joinedload(Product.inventory_items)
+            )
             .filter(Product.owner_id == owner_id)
         )
         
+        # Apply filters
         if search:
             query = query.filter(
                 Product.name.contains(search) | 
                 Product.description.contains(search) |
                 Product.sku.contains(search)
             )
+        
+        if brand_id:
+            query = query.filter(Product.brand_id == brand_id)
+        
+        if category_id:
+            query = query.filter(Product.category_id == category_id)
+        
+        if is_active is not None:
+            query = query.filter(Product.is_active == is_active)
+        
+        if in_stock_only:
+            # Only products that have inventory with stock > 0
+            from app.models.inventory import InventoryItem
+            query = query.join(InventoryItem).filter(
+                and_(
+                    InventoryItem.current_stock > 0,
+                    InventoryItem.is_active == True
+                )
+            ).distinct()
         
         return query.offset(skip).limit(limit).all()
     
@@ -71,7 +103,12 @@ class ProductService:
     
     @staticmethod
     def create(db: Session, product_create: ProductCreate, owner_id: int) -> Product:
-        """Create a new product."""
+        """Create a new product (catalog entry)."""
+        # Check if SKU already exists for this owner
+        existing_product = ProductService.get_by_sku(db, product_create.sku, owner_id)
+        if existing_product:
+            raise ValueError(f"Product with SKU '{product_create.sku}' already exists")
+        
         db_product = Product(
             **product_create.model_dump(),
             owner_id=owner_id
@@ -79,7 +116,7 @@ class ProductService:
         db.add(db_product)
         db.commit()
         db.refresh(db_product)
-        return db_product
+        return ProductService.get_by_id(db, db_product.id, owner_id)
     
     @staticmethod
     def update(
@@ -138,13 +175,115 @@ class ProductService:
         products = ProductService.get_all(db, owner_id, skip=0, limit=1000)
         
         total_products = len(products)
-        total_value = sum(product.price * product.quantity for product in products)
-        total_quantity = sum(product.quantity for product in products)
         active_products = sum(1 for product in products if product.is_active)
+        featured_products = sum(1 for product in products if product.is_featured)
+        discontinued_products = sum(1 for product in products if product.is_discontinued)
+        in_stock_products = sum(1 for product in products if product.is_in_stock)
+        
+        # Calculate total inventory value from linked inventory items
+        total_inventory_value = 0.0
+        total_stock_quantity = 0
+        for product in products:
+            for inventory_item in product.inventory_items:
+                if inventory_item.is_active:
+                    total_inventory_value += inventory_item.stock_value
+                    total_stock_quantity += inventory_item.current_stock
         
         return {
             "total_products": total_products,
             "active_products": active_products,
-            "total_inventory_value": total_value,
-            "total_quantity": total_quantity
+            "featured_products": featured_products,
+            "discontinued_products": discontinued_products,
+            "in_stock_products": in_stock_products,
+            "total_inventory_value": total_inventory_value,
+            "total_stock_quantity": total_stock_quantity,
+            "average_stock_per_product": total_stock_quantity / total_products if total_products > 0 else 0
+        }
+    
+    @staticmethod
+    def get_available_for_order(
+        db: Session, 
+        product_id: int, 
+        owner_id: int,
+        requested_color: Optional[str] = None,
+        requested_shade: Optional[str] = None,
+        requested_size: Optional[str] = None
+    ) -> List['InventoryItem']:
+        """Get available inventory items for a product that can fulfill an order."""
+        from app.models.inventory import InventoryItem
+        
+        query = (
+            db.query(InventoryItem)
+            .filter(
+                and_(
+                    InventoryItem.product_id == product_id,
+                    InventoryItem.owner_id == owner_id,
+                    InventoryItem.is_active == True,
+                    InventoryItem.current_stock > 0
+                )
+            )
+        )
+        
+        # Apply variant filters if specified
+        if requested_color:
+            query = query.filter(InventoryItem.color == requested_color)
+        
+        if requested_shade:
+            query = query.filter(InventoryItem.shade == requested_shade)
+        
+        if requested_size:
+            query = query.filter(InventoryItem.size == requested_size)
+        
+        # Order by stock level (highest first) and selling price (lowest first for better margins)
+        return query.order_by(
+            InventoryItem.current_stock.desc(),
+            InventoryItem.selling_price.asc()
+        ).all()
+    
+    @staticmethod
+    def check_availability(
+        db: Session, 
+        product_id: int, 
+        quantity: int, 
+        owner_id: int,
+        requested_color: Optional[str] = None,
+        requested_shade: Optional[str] = None,
+        requested_size: Optional[str] = None
+    ) -> dict:
+        """Check if a product can fulfill the requested quantity with preferences."""
+        available_inventory = ProductService.get_available_for_order(
+            db, product_id, owner_id, requested_color, requested_shade, requested_size
+        )
+        
+        total_available = sum(item.current_stock for item in available_inventory)
+        can_fulfill = total_available >= quantity
+        
+        # Suggest allocation strategy
+        allocation_plan = []
+        remaining_quantity = quantity
+        
+        for inventory_item in available_inventory:
+            if remaining_quantity <= 0:
+                break
+            
+            allocate_qty = min(remaining_quantity, inventory_item.current_stock)
+            allocation_plan.append({
+                "inventory_item_id": inventory_item.id,
+                "location": inventory_item.location,
+                "available_stock": inventory_item.current_stock,
+                "allocate_quantity": allocate_qty,
+                "color": inventory_item.color,
+                "shade": inventory_item.shade,
+                "size": inventory_item.size,
+                "selling_price": inventory_item.selling_price
+            })
+            remaining_quantity -= allocate_qty
+        
+        return {
+            "can_fulfill": can_fulfill,
+            "total_available": total_available,
+            "requested_quantity": quantity,
+            "shortage": max(0, quantity - total_available),
+            "allocation_plan": allocation_plan,
+            "alternative_variants": len(available_inventory) if not can_fulfill else 0
         }

@@ -112,7 +112,18 @@ class InventoryService:
     
     @staticmethod
     def create(db: Session, item_create: InventoryItemCreate, owner_id: int) -> InventoryItem:
-        """Create a new inventory item."""
+        """Create a new inventory item linked to a product."""
+        # Validate that the product exists and belongs to the owner
+        product = db.query(Product).filter(
+            and_(
+                Product.id == item_create.product_id,
+                Product.owner_id == owner_id
+            )
+        ).first()
+        
+        if not product:
+            raise ValueError(f"Product with ID {item_create.product_id} not found or not owned by user")
+        
         db_item = InventoryItem(
             **item_create.model_dump(),
             owner_id=owner_id

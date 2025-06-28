@@ -10,9 +10,9 @@ from .category import CategorySummary
 
 class InventoryItemBase(BaseModel):
     """Base inventory item schema."""
-    name: str
-    description: Optional[str] = None
-    product_id: Optional[int] = None
+    product_id: int  # Required - must link to a product
+    location: str = "main_warehouse"
+    batch_number: Optional[str] = None
     cost_price: float
     selling_price: float
     current_stock: int = 0
@@ -20,11 +20,10 @@ class InventoryItemBase(BaseModel):
     maximum_stock: int = 100
     reorder_point: int = 10
     reorder_quantity: int = 20
-    weight: Optional[float] = None
-    dimensions: Optional[str] = None
     color: Optional[str] = None
     shade: Optional[str] = None
     size: Optional[str] = None
+    expiry_date: Optional[datetime] = None
     is_featured: bool = False
     supplier_name: Optional[str] = None
     supplier_contact: Optional[str] = None
@@ -37,9 +36,8 @@ class InventoryItemCreate(InventoryItemBase):
 
 class InventoryItemUpdate(BaseModel):
     """Inventory item update schema."""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    product_id: Optional[int] = None
+    location: Optional[str] = None
+    batch_number: Optional[str] = None
     cost_price: Optional[float] = None
     selling_price: Optional[float] = None
     current_stock: Optional[int] = None
@@ -47,11 +45,10 @@ class InventoryItemUpdate(BaseModel):
     maximum_stock: Optional[int] = None
     reorder_point: Optional[int] = None
     reorder_quantity: Optional[int] = None
-    weight: Optional[float] = None
-    dimensions: Optional[str] = None
     color: Optional[str] = None
     shade: Optional[str] = None
     size: Optional[str] = None
+    expiry_date: Optional[datetime] = None
     is_active: Optional[bool] = None
     is_featured: Optional[bool] = None
     is_discontinued: Optional[bool] = None
@@ -68,9 +65,21 @@ class InventoryItemResponse(InventoryItemBase):
     updated_at: Optional[datetime] = None
     last_restocked: Optional[datetime] = None
     owner_id: int
+    
+    # Properties from linked product
+    name: str = ""  # From product
+    description: Optional[str] = None  # From product
     sku: Optional[str] = None  # From product
+    weight: Optional[float] = None  # From product
+    dimensions: Optional[str] = None  # From product
     brand: Optional[BrandSummary] = None  # From product
     category: Optional[CategorySummary] = None  # From product
+    
+    # Computed properties
+    is_low_stock: bool = False
+    is_out_of_stock: bool = False
+    profit_margin: float = 0.0
+    stock_value: float = 0.0
     
     model_config = {"from_attributes": True}
 
