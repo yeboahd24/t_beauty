@@ -1,11 +1,32 @@
 #!/usr/bin/env python3
 """
 Production startup script for T-Beauty application.
-This script checks for required environment variables and starts the application.
+This script loads environment variables from .env file (if present) and starts the application.
+Safe to commit to version control as it contains no secrets.
 """
 import os
 import sys
 import subprocess
+from pathlib import Path
+
+def load_env_file():
+    """Load environment variables from .env file if it exists."""
+    env_file = Path('.env')
+    if env_file.exists():
+        print("📋 Loading environment variables from .env file...")
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    # Only set if not already in environment (environment takes precedence)
+                    if key not in os.environ:
+                        os.environ[key] = value
+        print("✅ Environment variables loaded from .env")
+        return True
+    else:
+        print("ℹ️  No .env file found. Using system environment variables only.")
+        return False
 
 def check_environment():
     """Check if required environment variables are set."""
@@ -62,8 +83,11 @@ def start_application():
 
 def main():
     """Main function."""
-    print("🔍 T-Beauty Production Startup Check")
+    print("🔍 T-Beauty Production Startup")
     print("=" * 40)
+    
+    # Load environment variables from .env file
+    load_env_file()
     
     # Check environment variables
     if not check_environment():
