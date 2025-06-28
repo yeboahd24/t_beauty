@@ -1,6 +1,6 @@
-# FastAPI Auth & Products API
+# T-Beauty Business Management System
 
-A modern, production-ready FastAPI application with JWT authentication and product management system.
+A comprehensive business management system built with FastAPI for Instagram-based cosmetics retailers, featuring customer management, inventory tracking, order processing, and more.
 
 ## 🚀 Features
 
@@ -63,11 +63,22 @@ A modern, production-ready FastAPI application with JWT authentication and produ
 └── README.md               # This file
 ```
 
-## Setup and Installation
+## 🛠️ Setup and Installation
 
-1. **Clone the repository and navigate to the project directory**
+### Prerequisites
+- Python 3.11+
+- PostgreSQL (recommended) or SQLite
+- Git
 
-2. **Create a virtual environment:**
+### Quick Start
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yeboahd24/t_beauty.git
+   cd t_beauty
+   ```
+
+2. **Create virtual environment:**
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -78,24 +89,41 @@ A modern, production-ready FastAPI application with JWT authentication and produ
    pip install -r requirements.txt
    ```
 
-4. **Configure environment variables:**
-   - Copy `.env` file and update the values:
+4. **Configure database:**
+   
+   **Option A: .env file (Development)**
+   ```bash
+   cp config/.env.example .env
+   # Edit .env with your database credentials
    ```
-   SECRET_KEY=your-secret-key-here-change-in-production
-   ALGORITHM=HS256
-   ACCESS_TOKEN_EXPIRE_MINUTES=30
-   DATABASE_URL=sqlite:///./app.db
+   
+   **Option B: Environment variables (Production)**
+   ```bash
+   export DATABASE_URL="postgresql://user:pass@host:port/tbeauty?sslmode=require"
+   export SECRET_KEY="your-secret-key"
    ```
 
 5. **Run the application:**
+   
+   **Development:**
    ```bash
-   uvicorn main:app --reload
+   python main.py
+   ```
+   
+   **Production:**
+   ```bash
+   python start_production.py
    ```
 
 6. **Access the API:**
    - API: http://localhost:8000
    - Interactive docs: http://localhost:8000/docs
    - Alternative docs: http://localhost:8000/redoc
+
+### 📚 Additional Resources
+- **Deployment Guide**: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+- **Environment Setup**: [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md)
+- **PostgreSQL Setup**: [POSTGRESQL_SETUP_COMPLETE.md](POSTGRESQL_SETUP_COMPLETE.md)
 
 ## API Endpoints
 

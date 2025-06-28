@@ -134,6 +134,11 @@ venv.bak/
 run_tbeauty.sh
 POSTGRESQL_SOLUTION_SUMMARY.md
 
+# Editor temporary files
+*.swp
+*.swo
+*~
+
 # Spyder project settings
 .spyderproject
 .spyproject
