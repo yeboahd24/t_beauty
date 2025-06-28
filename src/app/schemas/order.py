@@ -11,7 +11,7 @@ from .inventory import InventoryItemSummary
 
 class OrderItemBase(BaseModel):
     """Base order item schema."""
-    inventory_item_id: int
+    product_id: int
     quantity: int
     unit_price: float
     discount_amount: float = 0.0
@@ -20,11 +20,16 @@ class OrderItemBase(BaseModel):
 
 class OrderItemCreate(BaseModel):
     """Order item creation schema."""
-    inventory_item_id: int
+    product_id: int  # Customer orders a PRODUCT
     quantity: int = Field(..., gt=0, description="Quantity must be greater than 0")
-    unit_price: Optional[float] = None  # If not provided, use inventory selling_price
+    unit_price: Optional[float] = None  # If not provided, use product base_price
     discount_amount: Optional[float] = 0.0
     notes: Optional[str] = None
+    
+    # Customer preferences for fulfillment
+    requested_color: Optional[str] = None
+    requested_shade: Optional[str] = None
+    requested_size: Optional[str] = None
 
 
 class OrderItemResponse(OrderItemBase):
@@ -34,8 +39,30 @@ class OrderItemResponse(OrderItemBase):
     product_name: str
     product_sku: str
     product_description: Optional[str] = None
+    
+    # Fulfillment tracking
+    allocated_quantity: int = 0
+    fulfilled_quantity: int = 0
+    inventory_item_id: Optional[int] = None
+    
+    # Customer preferences
+    requested_color: Optional[str] = None
+    requested_shade: Optional[str] = None
+    requested_size: Optional[str] = None
+    
+    # Timestamps
     created_at: datetime
+    allocated_at: Optional[datetime] = None
+    fulfilled_at: Optional[datetime] = None
+    
+    # Related data
     inventory_item: Optional[InventoryItemSummary] = None
+    
+    # Computed properties
+    is_fully_allocated: bool = False
+    is_fully_fulfilled: bool = False
+    pending_allocation: int = 0
+    pending_fulfillment: int = 0
     
     model_config = {"from_attributes": True}
 

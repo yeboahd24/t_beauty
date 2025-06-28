@@ -8,19 +8,19 @@ from app.db.base import Base
 
 
 class InventoryItem(Base):
-    """Enhanced inventory item model with stock tracking."""
+    """Inventory item model - Physical stock of products at specific locations."""
     
     __tablename__ = "inventory_items"
     
     id = Column(Integer, primary_key=True, index=True)
     
-    # Product information
-    name = Column(String(255), nullable=False, index=True)
-    description = Column(Text)
+    # Product link (REQUIRED - inventory must be linked to a product)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     
-    # Foreign keys
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)  # Link to product if exists
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Who owns this inventory
+    # Location and ownership
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    location = Column(String(255), default="main_warehouse")  # warehouse, store, etc.
+    batch_number = Column(String(100))  # For tracking specific batches
     
     # Pricing
     cost_price = Column(Float, nullable=False)  # What we pay
@@ -33,12 +33,11 @@ class InventoryItem(Base):
     reorder_point = Column(Integer, default=10)  # When to reorder
     reorder_quantity = Column(Integer, default=20)  # How much to reorder
     
-    # Product details
-    weight = Column(Float)  # For shipping calculations
-    dimensions = Column(String(100))  # L x W x H
+    # Variant details (specific to this inventory item)
     color = Column(String(50))
     shade = Column(String(50))
     size = Column(String(50))
+    expiry_date = Column(DateTime(timezone=True))  # For products with expiration
     
     # Status
     is_active = Column(Boolean, default=True)
@@ -55,7 +54,7 @@ class InventoryItem(Base):
     last_restocked = Column(DateTime(timezone=True))
     
     # Relationships
-    product = relationship("Product")
+    product = relationship("Product", back_populates="inventory_items")
     owner = relationship("User")
     order_items = relationship("OrderItem", back_populates="inventory_item")
     stock_movements = relationship("StockMovement", back_populates="inventory_item")
@@ -83,25 +82,39 @@ class InventoryItem(Base):
         return self.current_stock * self.cost_price
     
     @property
+    def name(self):
+        """Get product name."""
+        return self.product.name if self.product else "Unknown Product"
+    
+    @property
+    def description(self):
+        """Get product description."""
+        return self.product.description if self.product else None
+    
+    @property
     def brand(self):
         """Get brand through product relationship."""
-        if self.product:
-            # If brand is not loaded, we'll get it lazily
-            return self.product.brand
-        return None
+        return self.product.brand if self.product else None
     
     @property
     def category(self):
         """Get category through product relationship."""
-        if self.product:
-            # If category is not loaded, we'll get it lazily
-            return self.product.category
-        return None
+        return self.product.category if self.product else None
     
     @property
     def sku(self):
         """Get SKU through product relationship."""
         return self.product.sku if self.product else None
+    
+    @property
+    def weight(self):
+        """Get weight from product."""
+        return self.product.weight if self.product else None
+    
+    @property
+    def dimensions(self):
+        """Get dimensions from product."""
+        return self.product.dimensions if self.product else None
 
 
 class StockMovement(Base):

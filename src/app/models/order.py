@@ -113,36 +113,71 @@ class Order(Base):
 
 
 class OrderItem(Base):
-    """Individual items within an order."""
+    """Individual items within an order - Links products to orders and tracks fulfillment."""
     
     __tablename__ = "order_items"
     
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
-    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"), nullable=False)
     
-    # Item details
+    # Product ordered (what customer wants)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    
+    # Inventory allocation (where it will be fulfilled from)
+    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"), nullable=True)  # Set when allocated
+    
+    # Order details
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Float, nullable=False)
     discount_amount = Column(Float, default=0.0)
     total_price = Column(Float, nullable=False)
     
-    # Product snapshot (in case product details change)
+    # Product snapshot (preserved at time of order)
     product_name = Column(String(255), nullable=False)
     product_sku = Column(String(50), nullable=False)
     product_description = Column(Text)
     
-    # Special requests
+    # Fulfillment tracking
+    allocated_quantity = Column(Integer, default=0)  # How much has been allocated from inventory
+    fulfilled_quantity = Column(Integer, default=0)  # How much has been shipped
+    
+    # Special requests and variant details
     notes = Column(Text)
+    requested_color = Column(String(50))
+    requested_shade = Column(String(50))
+    requested_size = Column(String(50))
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    allocated_at = Column(DateTime(timezone=True))  # When inventory was allocated
+    fulfilled_at = Column(DateTime(timezone=True))  # When item was shipped
     
     # Relationships
     order = relationship("Order", back_populates="order_items")
+    product = relationship("Product", back_populates="order_items")
     inventory_item = relationship("InventoryItem", back_populates="order_items")
     
     @property
     def line_total(self):
         """Calculate line total after discount."""
         return (self.unit_price * self.quantity) - self.discount_amount
+    
+    @property
+    def is_fully_allocated(self):
+        """Check if the full quantity has been allocated from inventory."""
+        return self.allocated_quantity >= self.quantity
+    
+    @property
+    def is_fully_fulfilled(self):
+        """Check if the full quantity has been shipped."""
+        return self.fulfilled_quantity >= self.quantity
+    
+    @property
+    def pending_allocation(self):
+        """Get quantity still needing allocation."""
+        return max(0, self.quantity - self.allocated_quantity)
+    
+    @property
+    def pending_fulfillment(self):
+        """Get quantity allocated but not yet shipped."""
+        return max(0, self.allocated_quantity - self.fulfilled_quantity)
