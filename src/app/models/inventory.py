@@ -15,11 +15,12 @@ class InventoryItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # Product information
-    sku = Column(String(50), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
-    category = Column(String(100), index=True)  # e.g., "lipstick", "foundation", "eyeshadow"
-    brand = Column(String(100), index=True)
+    
+    # Foreign keys
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)  # Link to product if exists
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Who owns this inventory
     
     # Pricing
     cost_price = Column(Float, nullable=False)  # What we pay
@@ -54,6 +55,8 @@ class InventoryItem(Base):
     last_restocked = Column(DateTime(timezone=True))
     
     # Relationships
+    product = relationship("Product")
+    owner = relationship("User")
     order_items = relationship("OrderItem", back_populates="inventory_item")
     stock_movements = relationship("StockMovement", back_populates="inventory_item")
     
@@ -78,6 +81,27 @@ class InventoryItem(Base):
     def stock_value(self):
         """Calculate total value of current stock."""
         return self.current_stock * self.cost_price
+    
+    @property
+    def brand(self):
+        """Get brand through product relationship."""
+        if self.product:
+            # If brand is not loaded, we'll get it lazily
+            return self.product.brand
+        return None
+    
+    @property
+    def category(self):
+        """Get category through product relationship."""
+        if self.product:
+            # If category is not loaded, we'll get it lazily
+            return self.product.category
+        return None
+    
+    @property
+    def sku(self):
+        """Get SKU through product relationship."""
+        return self.product.sku if self.product else None
 
 
 class StockMovement(Base):

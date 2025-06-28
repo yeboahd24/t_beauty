@@ -21,6 +21,15 @@ async def create_product(
     db: Session = Depends(get_db)
 ):
     """Create a new product for the current user."""
+    # Check if SKU already exists
+    if product_create.sku:
+        existing_product = ProductService.get_by_sku(db, product_create.sku, current_user.id)
+        if existing_product:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Product with this SKU already exists"
+            )
+    
     return ProductService.create(db=db, product_create=product_create, owner_id=current_user.id)
 
 
@@ -84,6 +93,15 @@ async def update_product(
     db: Session = Depends(get_db)
 ):
     """Update a specific product by ID for the current user."""
+    # Check if SKU is being changed and already exists
+    if product_update.sku:
+        existing_product = ProductService.get_by_sku(db, product_update.sku, current_user.id)
+        if existing_product and existing_product.id != product_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Product with this SKU already exists"
+            )
+    
     product = ProductService.update(
         db=db, 
         product_id=product_id, 

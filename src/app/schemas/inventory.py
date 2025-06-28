@@ -4,15 +4,15 @@ Inventory schemas for T-Beauty.
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
+from .brand import BrandSummary
+from .category import CategorySummary
 
 
 class InventoryItemBase(BaseModel):
     """Base inventory item schema."""
-    sku: str
     name: str
     description: Optional[str] = None
-    category: Optional[str] = None
-    brand: Optional[str] = None
+    product_id: Optional[int] = None
     cost_price: float
     selling_price: float
     current_stock: int = 0
@@ -37,11 +37,9 @@ class InventoryItemCreate(InventoryItemBase):
 
 class InventoryItemUpdate(BaseModel):
     """Inventory item update schema."""
-    sku: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    category: Optional[str] = None
-    brand: Optional[str] = None
+    product_id: Optional[int] = None
     cost_price: Optional[float] = None
     selling_price: Optional[float] = None
     current_stock: Optional[int] = None
@@ -69,6 +67,10 @@ class InventoryItemResponse(InventoryItemBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     last_restocked: Optional[datetime] = None
+    owner_id: int
+    sku: Optional[str] = None  # From product
+    brand: Optional[BrandSummary] = None  # From product
+    category: Optional[CategorySummary] = None  # From product
     
     model_config = {"from_attributes": True}
 
@@ -76,14 +78,15 @@ class InventoryItemResponse(InventoryItemBase):
 class InventoryItemSummary(BaseModel):
     """Inventory item summary for lists."""
     id: int
-    sku: str
     name: str
-    category: Optional[str] = None
     current_stock: int
     minimum_stock: int
     selling_price: float
     is_low_stock: bool
     is_out_of_stock: bool
+    sku: Optional[str] = None  # From product
+    brand: Optional[BrandSummary] = None  # From product
+    category: Optional[CategorySummary] = None  # From product
     
     model_config = {"from_attributes": True}
 
@@ -122,7 +125,6 @@ class StockMovementResponse(BaseModel):
 class LowStockAlert(BaseModel):
     """Low stock alert schema."""
     id: int
-    sku: str
     name: str
     current_stock: int
     minimum_stock: int

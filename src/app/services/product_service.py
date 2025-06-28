@@ -2,7 +2,7 @@
 Product service for business logic.
 """
 from typing import Optional, List
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate
@@ -14,9 +14,22 @@ class ProductService:
     @staticmethod
     def get_by_id(db: Session, product_id: int, owner_id: int) -> Optional[Product]:
         """Get product by ID and owner."""
-        return db.query(Product).filter(
-            and_(Product.id == product_id, Product.owner_id == owner_id)
-        ).first()
+        return (
+            db.query(Product)
+            .options(joinedload(Product.brand), joinedload(Product.category))
+            .filter(and_(Product.id == product_id, Product.owner_id == owner_id))
+            .first()
+        )
+    
+    @staticmethod
+    def get_by_sku(db: Session, sku: str, owner_id: int) -> Optional[Product]:
+        """Get product by SKU and owner."""
+        return (
+            db.query(Product)
+            .options(joinedload(Product.brand), joinedload(Product.category))
+            .filter(and_(Product.sku == sku, Product.owner_id == owner_id))
+            .first()
+        )
     
     @staticmethod
     def get_all(
@@ -27,12 +40,17 @@ class ProductService:
         search: Optional[str] = None
     ) -> List[Product]:
         """Get all products for owner with pagination and search."""
-        query = db.query(Product).filter(Product.owner_id == owner_id)
+        query = (
+            db.query(Product)
+            .options(joinedload(Product.brand), joinedload(Product.category))
+            .filter(Product.owner_id == owner_id)
+        )
         
         if search:
             query = query.filter(
                 Product.name.contains(search) | 
-                Product.description.contains(search)
+                Product.description.contains(search) |
+                Product.sku.contains(search)
             )
         
         return query.offset(skip).limit(limit).all()
@@ -45,7 +63,8 @@ class ProductService:
         if search:
             query = query.filter(
                 Product.name.contains(search) | 
-                Product.description.contains(search)
+                Product.description.contains(search) |
+                Product.sku.contains(search)
             )
         
         return query.count()
@@ -92,6 +111,26 @@ class ProductService:
         db.delete(db_product)
         db.commit()
         return True
+    
+    @staticmethod
+    def get_with_inventory(db: Session, product_id: int, owner_id: int) -> Optional[Product]:
+        """Get product with its linked inventory items."""
+        from app.models.inventory import InventoryItem
+        
+        product = ProductService.get_by_id(db, product_id, owner_id)
+        if not product:
+            return None
+        
+        # Get linked inventory items
+        inventory_items = (
+            db.query(InventoryItem)
+            .filter(InventoryItem.product_id == product_id)
+            .all()
+        )
+        
+        # Add inventory items as a dynamic attribute
+        product.inventory_items = inventory_items
+        return product
     
     @staticmethod
     def get_stats(db: Session, owner_id: int) -> dict:

@@ -96,14 +96,26 @@ def sample_customer_data():
 
 
 @pytest.fixture
+def sample_product_data():
+    """Sample product data for testing."""
+    return {
+        "name": "Matte Red Lipstick",
+        "description": "Long-lasting matte red lipstick",
+        "price": 20.00,
+        "quantity": 50,
+        "sku": "LIP-RED-001",
+        "brand_id": None,
+        "category_id": None
+    }
+
+
+@pytest.fixture
 def sample_inventory_data():
     """Sample inventory item data for testing."""
     return {
-        "sku": "LIP-RED-001",
-        "name": "Matte Red Lipstick",
-        "description": "Long-lasting matte red lipstick",
-        "category": "lipstick",
-        "brand": "T-Beauty",
+        "name": "Matte Red Lipstick - Inventory",
+        "description": "Inventory tracking for matte red lipstick",
+        "product_id": None,  # Will be set when linking to a product
         "cost_price": 12.00,
         "selling_price": 20.00,
         "current_stock": 100,

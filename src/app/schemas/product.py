@@ -4,6 +4,8 @@ Product schemas.
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
+from .brand import BrandSummary
+from .category import CategorySummary
 
 
 class ProductBase(BaseModel):
@@ -12,6 +14,9 @@ class ProductBase(BaseModel):
     description: Optional[str] = None
     price: float
     quantity: int = 0
+    sku: Optional[str] = None
+    brand_id: Optional[int] = None
+    category_id: Optional[int] = None
 
 
 class ProductCreate(ProductBase):
@@ -25,6 +30,9 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     price: Optional[float] = None
     quantity: Optional[int] = None
+    sku: Optional[str] = None
+    brand_id: Optional[int] = None
+    category_id: Optional[int] = None
     is_active: Optional[bool] = None
 
 
@@ -35,6 +43,8 @@ class ProductResponse(ProductBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     owner_id: int
+    brand: Optional[BrandSummary] = None
+    category: Optional[CategorySummary] = None
     
     model_config = {"from_attributes": True}
 

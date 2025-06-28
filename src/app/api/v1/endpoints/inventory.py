@@ -24,24 +24,16 @@ async def create_inventory_item(
     db: Session = Depends(get_db)
 ):
     """Create a new inventory item."""
-    # Check if SKU already exists
-    existing_item = InventoryService.get_by_sku(db, item_create.sku)
-    if existing_item:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Item with this SKU already exists"
-        )
-    
-    return InventoryService.create(db=db, item_create=item_create)
+    return InventoryService.create(db=db, item_create=item_create, owner_id=current_user.id)
 
 
 @router.get("/", response_model=InventoryListResponse)
 async def read_inventory_items(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Page size"),
-    search: Optional[str] = Query(None, description="Search in item name, SKU, or description"),
-    category: Optional[str] = Query(None, description="Filter by category"),
-    brand: Optional[str] = Query(None, description="Filter by brand"),
+    search: Optional[str] = Query(None, description="Search in item name or description"),
+    category_id: Optional[int] = Query(None, description="Filter by category ID"),
+    brand_id: Optional[int] = Query(None, description="Filter by brand ID"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     low_stock_only: bool = Query(False, description="Show only low stock items"),
     out_of_stock_only: bool = Query(False, description="Show only out of stock items"),
@@ -52,11 +44,12 @@ async def read_inventory_items(
     skip = (page - 1) * size
     items = InventoryService.get_all(
         db=db,
+        owner_id=current_user.id,
         skip=skip,
         limit=size,
         search=search,
-        category=category,
-        brand=brand,
+        category_id=category_id,
+        brand_id=brand_id,
         is_active=is_active,
         low_stock_only=low_stock_only,
         out_of_stock_only=out_of_stock_only
@@ -64,8 +57,8 @@ async def read_inventory_items(
     total = InventoryService.count(
         db=db,
         search=search,
-        category=category,
-        brand=brand,
+        category_id=category_id,
+        brand_id=brand_id,
         is_active=is_active,
         low_stock_only=low_stock_only,
         out_of_stock_only=out_of_stock_only
@@ -146,7 +139,7 @@ async def read_inventory_item(
     db: Session = Depends(get_db)
 ):
     """Get a specific inventory item by ID."""
-    item = InventoryService.get_by_id(db=db, item_id=item_id)
+    item = InventoryService.get_by_id(db=db, item_id=item_id, owner_id=current_user.id)
     if item is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -163,15 +156,6 @@ async def update_inventory_item(
     db: Session = Depends(get_db)
 ):
     """Update a specific inventory item by ID."""
-    # Check if SKU is being changed and already exists
-    if item_update.sku:
-        existing_item = InventoryService.get_by_sku(db, item_update.sku)
-        if existing_item and existing_item.id != item_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Item with this SKU already exists"
-            )
-    
     item = InventoryService.update(
         db=db,
         item_id=item_id,
@@ -237,7 +221,7 @@ async def get_stock_movements(
 ):
     """Get stock movement history for an inventory item."""
     # Verify item exists
-    item = InventoryService.get_by_id(db=db, item_id=item_id)
+    item = InventoryService.get_by_id(db=db, item_id=item_id, owner_id=current_user.id)
     if item is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -2,10 +2,11 @@
 Inventory service for T-Beauty stock management.
 """
 from typing import Optional, List
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, func
 from datetime import datetime
 from app.models.inventory import InventoryItem, StockMovement
+from app.models.product import Product
 from app.schemas.inventory import InventoryItemCreate, InventoryItemUpdate, StockMovementCreate
 
 
@@ -13,39 +14,49 @@ class InventoryService:
     """Inventory service class for business logic."""
     
     @staticmethod
-    def get_by_id(db: Session, item_id: int) -> Optional[InventoryItem]:
-        """Get inventory item by ID."""
-        return db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
+    def get_by_id(db: Session, item_id: int, owner_id: int = None) -> Optional[InventoryItem]:
+        """Get inventory item by ID and owner."""
+        query = (
+            db.query(InventoryItem)
+            .options(joinedload(InventoryItem.product))
+            .filter(InventoryItem.id == item_id)
+        )
+        
+        if owner_id is not None:
+            query = query.filter(InventoryItem.owner_id == owner_id)
+        
+        return query.first()
     
-    @staticmethod
-    def get_by_sku(db: Session, sku: str) -> Optional[InventoryItem]:
-        """Get inventory item by SKU."""
-        return db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
     
     @staticmethod
     def get_all(
         db: Session,
+        owner_id: int,
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
-        category: Optional[str] = None,
-        brand: Optional[str] = None,
+        category_id: Optional[int] = None,
+        brand_id: Optional[int] = None,
         is_active: Optional[bool] = None,
         low_stock_only: bool = False,
         out_of_stock_only: bool = False
     ) -> List[InventoryItem]:
         """Get all inventory items with filtering and pagination."""
-        query = db.query(InventoryItem)
+        query = (
+            db.query(InventoryItem)
+            .options(joinedload(InventoryItem.product))
+            .filter(InventoryItem.owner_id == owner_id)
+        )
         
         # Apply filters
         if is_active is not None:
             query = query.filter(InventoryItem.is_active == is_active)
         
-        if category:
-            query = query.filter(InventoryItem.category == category)
+        if category_id:
+            query = query.join(InventoryItem.product).filter(Product.category_id == category_id)
         
-        if brand:
-            query = query.filter(InventoryItem.brand == brand)
+        if brand_id:
+            query = query.join(InventoryItem.product).filter(Product.brand_id == brand_id)
         
         if low_stock_only:
             query = query.filter(InventoryItem.current_stock <= InventoryItem.minimum_stock)
@@ -56,10 +67,7 @@ class InventoryService:
         if search:
             search_filter = or_(
                 InventoryItem.name.contains(search),
-                InventoryItem.sku.contains(search),
-                InventoryItem.description.contains(search),
-                InventoryItem.brand.contains(search),
-                InventoryItem.category.contains(search)
+                InventoryItem.description.contains(search)
             )
             query = query.filter(search_filter)
         
@@ -69,8 +77,8 @@ class InventoryService:
     def count(
         db: Session,
         search: Optional[str] = None,
-        category: Optional[str] = None,
-        brand: Optional[str] = None,
+        category_id: Optional[int] = None,
+        brand_id: Optional[int] = None,
         is_active: Optional[bool] = None,
         low_stock_only: bool = False,
         out_of_stock_only: bool = False
@@ -81,11 +89,11 @@ class InventoryService:
         if is_active is not None:
             query = query.filter(InventoryItem.is_active == is_active)
         
-        if category:
-            query = query.filter(InventoryItem.category == category)
+        if category_id:
+            query = query.join(InventoryItem.product).filter(Product.category_id == category_id)
         
-        if brand:
-            query = query.filter(InventoryItem.brand == brand)
+        if brand_id:
+            query = query.join(InventoryItem.product).filter(Product.brand_id == brand_id)
         
         if low_stock_only:
             query = query.filter(InventoryItem.current_stock <= InventoryItem.minimum_stock)
@@ -96,19 +104,19 @@ class InventoryService:
         if search:
             search_filter = or_(
                 InventoryItem.name.contains(search),
-                InventoryItem.sku.contains(search),
-                InventoryItem.description.contains(search),
-                InventoryItem.brand.contains(search),
-                InventoryItem.category.contains(search)
+                InventoryItem.description.contains(search)
             )
             query = query.filter(search_filter)
         
         return query.count()
     
     @staticmethod
-    def create(db: Session, item_create: InventoryItemCreate) -> InventoryItem:
+    def create(db: Session, item_create: InventoryItemCreate, owner_id: int) -> InventoryItem:
         """Create a new inventory item."""
-        db_item = InventoryItem(**item_create.model_dump())
+        db_item = InventoryItem(
+            **item_create.model_dump(),
+            owner_id=owner_id
+        )
         db.add(db_item)
         db.commit()
         db.refresh(db_item)
@@ -127,7 +135,8 @@ class InventoryService:
                 user_id=None
             )
         
-        return db_item
+        # Get the item with proper relationships loaded
+        return InventoryService.get_by_id(db, db_item.id, owner_id)
     
     @staticmethod
     def update(
@@ -264,14 +273,30 @@ class InventoryService:
     
     @staticmethod
     def get_categories(db: Session) -> List[str]:
-        """Get all unique categories."""
-        result = db.query(InventoryItem.category).distinct().all()
+        """Get all unique categories from inventory items through products."""
+        from app.models.category import Category
+        result = (
+            db.query(Category.name)
+            .join(Product)
+            .join(InventoryItem)
+            .filter(InventoryItem.is_active == True)
+            .distinct()
+            .all()
+        )
         return [category[0] for category in result if category[0]]
     
     @staticmethod
     def get_brands(db: Session) -> List[str]:
-        """Get all unique brands."""
-        result = db.query(InventoryItem.brand).distinct().all()
+        """Get all unique brands from inventory items through products."""
+        from app.models.brand import Brand
+        result = (
+            db.query(Brand.name)
+            .join(Product)
+            .join(InventoryItem)
+            .filter(InventoryItem.is_active == True)
+            .distinct()
+            .all()
+        )
         return [brand[0] for brand in result if brand[0]]
     
     @staticmethod
