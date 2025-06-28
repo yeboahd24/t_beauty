@@ -1,38 +1,86 @@
 version: '3.8'
 
 services:
-  api:
+  # T-Beauty Application
+  tbeauty:
     build: .
+    container_name: tbeauty-app
     ports:
       - "8000:8000"
-    env_file:
-      - config/.env
-    volumes:
-      - ./data:/app/data
-    restart: unless-stopped
-    depends_on:
-      - db
-
-  db:
-    image: postgres:15
     environment:
-      POSTGRES_DB: fastapi_app
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      # Database connection to the postgres service
+      DATABASE_URL: postgresql://tbeauty_user:tbeauty_password@postgres:5432/tbeauty?sslmode=disable
+      SECRET_KEY: ${SECRET_KEY:-change-this-in-production-min-32-chars}
+      ENVIRONMENT: production
+      DEBUG: false
+      # CORS settings
+      BACKEND_CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - tbeauty-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: tbeauty-db
+    environment:
+      POSTGRES_DB: tbeauty
+      POSTGRES_USER: tbeauty_user
+      POSTGRES_PASSWORD: tbeauty_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
       - "5432:5432"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tbeauty_user -d tbeauty"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tbeauty-network
 
-  # Development services
+  # Database Administration (Development)
   adminer:
-    image: adminer
-    restart: unless-stopped
+    image: adminer:latest
+    container_name: tbeauty-adminer
     ports:
       - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
     depends_on:
-      - db
+      - postgres
+    restart: unless-stopped
+    networks:
+      - tbeauty-network
+    profiles:
+      - dev
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: tbeauty-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - tbeauty-network
+    profiles:
+      - cache
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  tbeauty-network:
+    driver: bridge

@@ -1,0 +1,48 @@
+version: '3.8'
+
+# Production overrides for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  tbeauty:
+    environment:
+      # Override with production values
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      ENVIRONMENT: production
+      DEBUG: false
+      BACKEND_CORS_ORIGINS: ${CORS_ORIGINS}
+    # Remove port mapping for production (use reverse proxy)
+    ports: []
+    # Add resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  postgres:
+    environment:
+      # Use production database credentials
+      POSTGRES_DB: ${POSTGRES_DB:-tbeauty}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Remove port mapping for production (internal only)
+    ports: []
+    # Add resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  # Remove development services in production
+  adminer:
+    profiles:
+      - never  # This ensures adminer never starts in production
