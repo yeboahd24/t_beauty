@@ -1,12 +1,13 @@
+#!/usr/bin/env python3
 """
-Main entry point for the FastAPI application.
-This file automatically loads environment variables from .env file.
+Simple runner script for T-Beauty application.
+This script ensures environment variables are loaded and starts the application.
 """
-import sys
 import os
+import sys
+import subprocess
 from pathlib import Path
 
-# Load environment variables from .env file if it exists
 def load_env_file():
     """Load environment variables from .env file."""
     env_file = Path('.env')
@@ -16,6 +17,7 @@ def load_env_file():
             from dotenv import load_dotenv
             load_dotenv(env_file)
             print("Environment variables loaded successfully")
+            return True
         except ImportError:
             print("Warning: python-dotenv not installed. Loading .env manually...")
             # Manual loading if python-dotenv is not available
@@ -28,19 +30,13 @@ def load_env_file():
                         if key not in os.environ:
                             os.environ[key] = value
             print("Environment variables loaded manually")
+            return True
     else:
         print("No .env file found. Using system environment variables.")
+        return False
 
-# Load environment variables before importing the app
-load_env_file()
-
-# Add src to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.app.main import app
-
-if __name__ == "__main__":
-    # Check if required environment variables are set
+def validate_environment():
+    """Validate required environment variables."""
     required_vars = ['SECRET_KEY', 'DATABASE_URL']
     missing_vars = [var for var in required_vars if not os.environ.get(var)]
     
@@ -52,9 +48,14 @@ if __name__ == "__main__":
         print("Example .env file:")
         print("   SECRET_KEY=your-secret-key-here")
         print("   DATABASE_URL=postgresql://user:pass@host:port/database")
-        sys.exit(1)
+        return False
     
+    return True
+
+def show_config():
+    """Show current configuration."""
     print("Starting T-Beauty Business Management System")
+    print("=" * 50)
     
     # Show configuration (mask sensitive data)
     db_url = os.environ.get('DATABASE_URL', 'Not set')
@@ -63,9 +64,31 @@ if __name__ == "__main__":
         print(f"Database: {masked_url}")
     
     print(f"Environment: {os.environ.get('ENVIRONMENT', 'development')}")
+    print(f"Debug Mode: {os.environ.get('DEBUG', 'true')}")
     print("API Documentation: http://localhost:8000/docs")
     print("Admin Interface: http://localhost:8000/redoc")
     print("")
+
+def main():
+    """Main function."""
+    # Load environment variables
+    load_env_file()
     
-    import uvicorn
-    uvicorn.run("src.app.main:app", host="0.0.0.0", port=8000, reload=True)
+    # Validate environment
+    if not validate_environment():
+        sys.exit(1)
+    
+    # Show configuration
+    show_config()
+    
+    # Run the application
+    try:
+        subprocess.run([sys.executable, 'main.py'], check=True)
+    except KeyboardInterrupt:
+        print("\nApplication stopped by user")
+    except subprocess.CalledProcessError as e:
+        print(f"Application failed to start: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
