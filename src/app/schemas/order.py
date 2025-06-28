@@ -3,8 +3,10 @@ Order schemas for T-Beauty.
 """
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.models.order import OrderStatus, PaymentStatus
+from .customer import CustomerSummary
+from .inventory import InventoryItemSummary
 
 
 class OrderItemBase(BaseModel):
@@ -16,9 +18,13 @@ class OrderItemBase(BaseModel):
     notes: Optional[str] = None
 
 
-class OrderItemCreate(OrderItemBase):
+class OrderItemCreate(BaseModel):
     """Order item creation schema."""
-    pass
+    inventory_item_id: int
+    quantity: int = Field(..., gt=0, description="Quantity must be greater than 0")
+    unit_price: Optional[float] = None  # If not provided, use inventory selling_price
+    discount_amount: Optional[float] = 0.0
+    notes: Optional[str] = None
 
 
 class OrderItemResponse(OrderItemBase):
@@ -29,6 +35,7 @@ class OrderItemResponse(OrderItemBase):
     product_sku: str
     product_description: Optional[str] = None
     created_at: datetime
+    inventory_item: Optional[InventoryItemSummary] = None
     
     model_config = {"from_attributes": True}
 
@@ -51,7 +58,14 @@ class OrderBase(BaseModel):
 
 class OrderCreate(OrderBase):
     """Order creation schema."""
-    items: List[OrderItemCreate]
+    items: List[OrderItemCreate] = Field(..., min_length=1, description="Order must have at least one item")
+    
+    # Additional fields for order creation
+    payment_method: Optional[str] = None
+    shipping_cost: Optional[float] = 0.0
+    tax_amount: Optional[float] = 0.0
+    discount_amount: Optional[float] = 0.0
+    internal_notes: Optional[str] = None
 
 
 class OrderUpdate(BaseModel):
@@ -91,7 +105,13 @@ class OrderResponse(OrderBase):
     expected_delivery_date: Optional[datetime] = None
     
     # Related data
-    order_items: List[OrderItemResponse]
+    order_items: List[OrderItemResponse] = []
+    customer: Optional[CustomerSummary] = None
+    
+    # Computed properties
+    is_paid: bool = False
+    outstanding_amount: float = 0.0
+    can_be_shipped: bool = False
     
     model_config = {"from_attributes": True}
 
@@ -100,13 +120,14 @@ class OrderSummary(BaseModel):
     """Order summary for lists."""
     id: int
     order_number: str
-    customer_id: int
-    customer_name: str
     status: OrderStatus
     payment_status: PaymentStatus
     total_amount: float
     amount_paid: float
+    outstanding_amount: float
     created_at: datetime
+    customer: Optional[CustomerSummary] = None
+    items_count: int = 0
     
     model_config = {"from_attributes": True}
 
@@ -143,4 +164,29 @@ class OrderListResponse(BaseModel):
     total: int
     page: int
     size: int
-    stats: OrderStats
+
+
+class LowStockImpactItem(BaseModel):
+    """Low stock impact item schema."""
+    name: str
+    sku: Optional[str] = None
+    current_stock: int
+    minimum_stock: int
+    ordered_quantity: int
+    can_fulfill: bool
+
+
+class LowStockImpact(BaseModel):
+    """Low stock impact on orders schema."""
+    order_id: int
+    order_number: str
+    customer_name: str
+    total_amount: float
+    low_stock_items: List[LowStockImpactItem]
+
+
+class OrderConfirmation(BaseModel):
+    """Order confirmation response."""
+    order: OrderResponse
+    stock_reductions: List[dict]
+    message: str
