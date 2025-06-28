@@ -1,0 +1,23 @@
+#!/bin/bash
+# T-Beauty Application Startup Script with PostgreSQL
+# Copy this file to run_tbeauty.sh and update with your actual database credentials
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Set your PostgreSQL database URL
+# Replace with your actual database credentials:
+# export DATABASE_URL="postgresql://username:password@host:port/database_name?sslmode=require"
+export DATABASE_URL="postgresql://your_username:your_password@your_host:your_port/tbeauty?sslmode=require"
+
+# Clear any conflicting environment variables
+unset DATABASE_URL_OLD
+
+echo "🚀 Starting T-Beauty Business Management System"
+echo "📊 Database: PostgreSQL (tbeauty)"
+echo "🌐 API Documentation: http://localhost:8000/docs"
+echo "🔧 Admin Interface: http://localhost:8000/redoc"
+echo ""
+
+# Run the application
+python main.py
