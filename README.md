@@ -18,6 +18,14 @@ A comprehensive business management system built with FastAPI for Instagram-base
 - User-specific product ownership
 - Product statistics and analytics
 
+### 📊 Inventory Management
+- Dual pricing system (cost price vs selling price)
+- Stock level tracking and alerts
+- Automatic profit margin calculations
+- Inventory valuation and analytics
+- Reorder point management
+- Stock movement history
+
 ### 🏗️ Architecture
 - Clean architecture with separation of concerns
 - Service layer for business logic
@@ -243,5 +251,170 @@ alembic upgrade head
 5. Submit a pull request
 
 ## License
+
+## 💰 Understanding Cost Price vs Selling Price
+
+T-Beauty uses a dual pricing system to track profitability and manage inventory effectively.
+
+### 🏷️ Cost Price
+**What you PAY** to acquire the product
+- The amount you spend to purchase/produce the item
+- Includes: Product cost + shipping + taxes + import duties
+- Used for: Expense tracking, profit calculation, inventory valuation
+
+### 💵 Selling Price
+**What you CHARGE** customers for the product
+- The amount customers pay you
+- Includes your markup/profit margin
+- Used for: Revenue generation, customer pricing, profit calculation
+
+### 📊 Example: Matte Red Lipstick
+
+```json
+{
+  "product_name": "Matte Red Lipstick",
+  "cost_price": 12.50,     // What you paid supplier
+  "selling_price": 25.00,  // What you charge customer
+  "current_stock": 50,
+  
+  // Automatic calculations:
+  "profit_per_unit": 12.50,    // selling_price - cost_price
+  "profit_margin": 100.0,      // ((selling_price - cost_price) / cost_price) × 100
+  "stock_value": 625.00,       // current_stock × cost_price
+  "potential_revenue": 1250.00 // current_stock × selling_price
+}
+```
+
+### 🧮 Key Business Metrics
+
+#### Profit Calculations
+- **Profit Per Unit**: `selling_price - cost_price`
+- **Profit Margin %**: `((selling_price - cost_price) / cost_price) × 100`
+- **Total Profit Potential**: `(selling_price - cost_price) × current_stock`
+
+#### Inventory Valuation
+- **Stock Value**: `cost_price × current_stock` (money invested)
+- **Potential Revenue**: `selling_price × current_stock` (if all sold)
+- **ROI Potential**: `((potential_revenue - stock_value) / stock_value) × 100`
+
+### 🎯 Business Applications
+
+#### 📈 Profitability Analysis
+- Identify high-margin vs low-margin products
+- Track profit trends over time
+- Make informed pricing decisions
+
+#### 💡 Inventory Management
+- Calculate total money tied up in inventory
+- Determine reorder priorities based on profitability
+- Optimize stock levels for cash flow
+
+#### 🛍️ Pricing Strategy
+- Set competitive prices while maintaining margins
+- Offer strategic discounts without losing money
+- Negotiate better supplier prices to improve margins
+
+### 📱 API Usage Examples
+
+#### Create Inventory Item
+```http
+POST /api/v1/inventory/
+{
+  "product_id": 1,
+  "cost_price": 12.50,      // Your cost from supplier
+  "selling_price": 25.00,   // Your customer price
+  "current_stock": 50,
+  "minimum_stock": 10,
+  "location": "main_warehouse"
+}
+```
+
+#### Get Inventory with Profit Metrics
+```http
+GET /api/v1/inventory/1
+```
+
+**Response includes automatic calculations:**
+```json
+{
+  "id": 1,
+  "cost_price": 12.50,
+  "selling_price": 25.00,
+  "current_stock": 50,
+  "profit_margin": 100.0,     // Calculated automatically
+  "stock_value": 625.00,      // Calculated automatically
+  "is_low_stock": false,
+  "name": "Matte Red Lipstick"
+}
+```
+
+#### Update Pricing
+```http
+PUT /api/v1/inventory/1
+{
+  "cost_price": 11.00,       // Supplier gave you a discount
+  "selling_price": 25.00     // Keep customer price same
+  // profit_margin automatically increases to 127.3%
+}
+```
+
+### 🔍 Real Business Scenarios
+
+#### Scenario 1: Bulk Purchase Discount
+```json
+// Before: Regular supplier price
+{
+  "cost_price": 15.00,
+  "selling_price": 35.00,
+  "profit_margin": 133.3
+}
+
+// After: Bulk discount from supplier
+{
+  "cost_price": 12.00,      // 20% discount from supplier
+  "selling_price": 35.00,   // Keep same customer price
+  "profit_margin": 191.7    // Profit margin improved!
+}
+```
+
+#### Scenario 2: Competitive Pricing
+```json
+// Market research shows competitors at $30
+{
+  "cost_price": 15.00,
+  "selling_price": 30.00,   // Reduced from $35 to compete
+  "profit_margin": 100.0    // Still profitable at 100% margin
+}
+```
+
+#### Scenario 3: Clearance Sale
+```json
+// Need to clear old stock
+{
+  "cost_price": 15.00,
+  "selling_price": 20.00,   // 43% off original $35 price
+  "profit_margin": 33.3     // Still making 33% profit
+}
+```
+
+### 📊 Dashboard Insights
+
+The inventory stats endpoint provides business intelligence:
+
+```http
+GET /api/v1/inventory/stats
+```
+
+**Returns:**
+- Total inventory value (based on cost prices)
+- Potential revenue (based on selling prices)
+- Average profit margins across all products
+- Top selling items by profitability
+
+This dual pricing system gives you complete visibility into your business profitability and helps you make informed decisions about inventory, pricing, and growth strategies.
+
+---
+
+## 📄 License
 
 This project is licensed under the MIT License.
