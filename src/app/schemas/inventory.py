@@ -87,6 +87,7 @@ class InventoryItemResponse(InventoryItemBase):
 class InventoryItemSummary(BaseModel):
     """Inventory item summary for lists."""
     id: int
+    product_id: int  # Added product_id for inventory list
     name: str
     current_stock: int
     minimum_stock: int
@@ -134,6 +135,7 @@ class StockMovementResponse(BaseModel):
 class LowStockAlert(BaseModel):
     """Low stock alert schema."""
     id: int
+    product_id: int  # Added product_id for low stock alerts
     name: str
     current_stock: int
     minimum_stock: int
