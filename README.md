@@ -415,6 +415,167 @@ This dual pricing system gives you complete visibility into your business profit
 
 ---
 
+## 📝 Product Management Guide
+
+### 🔄 Updating Products
+
+T-Beauty supports flexible product updates with partial field updates and comprehensive validation.
+
+#### Basic Product Update
+```http
+PUT /api/v1/products/1
+Content-Type: application/json
+Authorization: Bearer your-jwt-token
+
+{
+  "name": "Premium Matte Red Lipstick",
+  "description": "Long-lasting premium matte red lipstick with vitamin E",
+  "base_price": 28.00
+}
+```
+
+#### Complete Product Update
+```http
+PUT /api/v1/products/1
+Content-Type: application/json
+Authorization: Bearer your-jwt-token
+
+{
+  "name": "Luxury Matte Red Lipstick Collection",
+  "description": "Premium long-lasting matte red lipstick with organic ingredients and vitamin E. Cruelty-free and vegan formula.",
+  "base_price": 35.00,
+  "sku": "LIP-LUXURY-RED-001",
+  "brand_id": 2,
+  "category_id": 3,
+  "weight": 0.06,
+  "dimensions": "12cm x 2.5cm x 2.5cm",
+  "is_active": true,
+  "is_featured": true,
+  "is_discontinued": false
+}
+```
+
+#### Product Field Reference
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `name` | string | Product name | `"Premium Matte Red Lipstick"` |
+| `description` | string | Product description | `"Long-lasting matte formula"` |
+| `base_price` | float | Suggested retail price | `25.00` |
+| `sku` | string | Stock Keeping Unit | `"LIP-RED-001"` |
+| `brand_id` | int | Brand reference | `1` |
+| `category_id` | int | Category reference | `2` |
+| `weight` | float | Product weight (kg) | `0.05` |
+| `dimensions` | string | Product dimensions | `"10cm x 2cm x 2cm"` |
+| `is_active` | boolean | Is product active | `true` |
+| `is_featured` | boolean | Is featured product | `false` |
+| `is_discontinued` | boolean | Is discontinued | `false` |
+
+#### Common Update Scenarios
+
+**Price Update:**
+```json
+{
+  "base_price": 30.00
+}
+```
+
+**Seasonal Promotion:**
+```json
+{
+  "base_price": 20.00,
+  "is_featured": true,
+  "description": "SUMMER SALE: Premium Matte Red Lipstick - Limited time offer!"
+}
+```
+
+**Product Rebranding:**
+```json
+{
+  "name": "Signature Matte Red Lipstick",
+  "brand_id": 2,
+  "sku": "SIG-LIP-RED-001",
+  "description": "Rebranded premium matte lipstick with new signature formula"
+}
+```
+
+**Discontinue Product:**
+```json
+{
+  "is_active": false,
+  "is_discontinued": true,
+  "is_featured": false
+}
+```
+
+**Product Specifications Update:**
+```json
+{
+  "weight": 0.065,
+  "dimensions": "12cm x 2.5cm x 2.5cm",
+  "description": "Premium Matte Red Lipstick - Now with 30% more product!"
+}
+```
+
+#### Update Response
+```json
+{
+  "id": 1,
+  "name": "Premium Matte Red Lipstick",
+  "description": "Long-lasting premium matte red lipstick with vitamin E",
+  "base_price": 28.00,
+  "sku": "LIP-RED-001",
+  "weight": 0.05,
+  "dimensions": "10cm x 2cm x 2cm",
+  "brand_id": 1,
+  "category_id": 2,
+  "is_active": true,
+  "is_featured": false,
+  "is_discontinued": false,
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-20T14:45:00Z",
+  "owner_id": 1,
+  "brand": {
+    "id": 1,
+    "name": "T-Beauty",
+    "description": "Premium cosmetics brand"
+  },
+  "category": {
+    "id": 2,
+    "name": "Matte Lipstick",
+    "description": "Matte finish lipsticks"
+  },
+  "total_stock": 67,
+  "available_stock": 67,
+  "is_in_stock": true
+}
+```
+
+#### Important Notes
+
+**Partial Updates:**
+- Include only fields you want to change
+- Omitted fields remain unchanged
+- `null` values clear optional fields
+
+**Validation Rules:**
+- `name` cannot be empty
+- `base_price` must be positive
+- `sku` must be unique (if provided)
+- `brand_id` and `category_id` must exist
+
+**Business Logic:**
+- Updating `base_price` doesn't automatically update inventory selling prices
+- Changing `is_active` to `false` affects product visibility
+- `is_discontinued` products should typically have `is_active: false`
+
+**Inventory Impact:**
+- Product updates don't directly affect inventory stock levels
+- Inventory items maintain their own pricing
+- Use inventory endpoints to update stock-related information
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License.
