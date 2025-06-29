@@ -175,9 +175,9 @@ async def confirm_order(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Confirm order and automatically reduce inventory stock."""
+    """Confirm order and automatically allocate inventory and reduce stock."""
     try:
-        # Get order before confirmation to track stock changes
+        # Get order before confirmation
         order_before = OrderService.get_by_id(db=db, order_id=order_id, owner_id=current_user.id)
         if not order_before:
             raise HTTPException(
@@ -185,27 +185,89 @@ async def confirm_order(
                 detail="Order not found"
             )
         
-        # Track stock reductions
-        stock_reductions = []
-        for item in order_before.order_items:
-            stock_reductions.append({
-                "inventory_item_id": item.inventory_item_id,
-                "product_name": item.product_name,
-                "sku": item.product_sku,
-                "quantity_reduced": item.quantity,
-                "previous_stock": item.inventory_item.current_stock,
-                "new_stock": item.inventory_item.current_stock - item.quantity
-            })
+        if order_before.status != OrderStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot confirm order with status: {order_before.status}"
+            )
         
-        # Confirm order (this will reduce stock)
-        confirmed_order = OrderService.confirm_order(db=db, order_id=order_id, owner_id=current_user.id)
+        # First, allocate inventory for all items
+        try:
+            allocated_order = OrderService.allocate_inventory(db=db, order_id=order_id, owner_id=current_user.id)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Inventory allocation failed: {str(e)}"
+            )
+        
+        # Track stock reductions after allocation
+        stock_reductions = []
+        for item in allocated_order.order_items:
+            if item.inventory_item:
+                stock_reductions.append({
+                    "inventory_item_id": item.inventory_item_id,
+                    "product_name": item.product_name,
+                    "sku": item.product_sku,
+                    "quantity_reduced": item.allocated_quantity,
+                    "previous_stock": item.inventory_item.current_stock + item.allocated_quantity,  # Stock before allocation
+                    "new_stock": item.inventory_item.current_stock,  # Current stock after allocation
+                    "location": item.inventory_item.location,
+                    "color": item.inventory_item.color,
+                    "shade": item.inventory_item.shade,
+                    "size": item.inventory_item.size
+                })
+            else:
+                # Handle case where allocation couldn't find suitable inventory
+                stock_reductions.append({
+                    "inventory_item_id": None,
+                    "product_name": item.product_name,
+                    "sku": item.product_sku,
+                    "quantity_reduced": 0,
+                    "previous_stock": 0,
+                    "new_stock": 0,
+                    "error": "No suitable inventory found for allocation"
+                })
         
         return OrderConfirmation(
-            order=confirmed_order,
+            order=allocated_order,
             stock_reductions=stock_reductions,
-            message=f"Order {confirmed_order.order_number} confirmed successfully. Inventory stock has been automatically reduced."
+            message=f"Order {allocated_order.order_number} confirmed successfully. Inventory has been automatically allocated and stock reduced."
         )
         
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post("/{order_id}/allocate", response_model=OrderResponse)
+async def allocate_inventory(
+    order_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Allocate inventory for order items without confirming the order."""
+    try:
+        allocated_order = OrderService.allocate_inventory(db=db, order_id=order_id, owner_id=current_user.id)
+        return allocated_order
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.get("/{order_id}/allocation-status")
+async def get_allocation_status(
+    order_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get detailed allocation status for an order."""
+    try:
+        allocation_status = OrderService.get_allocation_status(db=db, order_id=order_id, owner_id=current_user.id)
+        return allocation_status
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
