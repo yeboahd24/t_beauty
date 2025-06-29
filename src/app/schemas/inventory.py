@@ -151,7 +151,8 @@ class InventoryStats(BaseModel):
     out_of_stock_items: int
     total_stock_value: float
     categories: List[str]
-    top_selling_items: List[InventoryItemSummary]
+    brands: List[str]
+    top_selling_items: Optional[List[InventoryItemSummary]] = []
 
 
 class InventoryListResponse(BaseModel):

@@ -56,6 +56,7 @@ async def read_inventory_items(
     )
     total = InventoryService.count(
         db=db,
+        owner_id=current_user.id,
         search=search,
         category_id=category_id,
         brand_id=brand_id,
@@ -65,8 +66,8 @@ async def read_inventory_items(
     )
     
     # Get additional counts for dashboard
-    low_stock_count = InventoryService.count(db=db, low_stock_only=True)
-    out_of_stock_count = InventoryService.count(db=db, out_of_stock_only=True)
+    low_stock_count = InventoryService.count(db=db, owner_id=current_user.id, low_stock_only=True)
+    out_of_stock_count = InventoryService.count(db=db, owner_id=current_user.id, out_of_stock_only=True)
     
     return InventoryListResponse(
         items=items,
@@ -84,7 +85,7 @@ async def get_inventory_stats(
     db: Session = Depends(get_db)
 ):
     """Get inventory statistics."""
-    return InventoryService.get_inventory_stats(db=db)
+    return InventoryService.get_inventory_stats(db=db, owner_id=current_user.id)
 
 
 @router.get("/low-stock")
@@ -93,7 +94,7 @@ async def get_low_stock_items(
     db: Session = Depends(get_db)
 ):
     """Get items that are low in stock."""
-    return InventoryService.get_low_stock_items(db=db)
+    return InventoryService.get_low_stock_items(db=db, owner_id=current_user.id)
 
 
 @router.get("/out-of-stock")
@@ -102,7 +103,7 @@ async def get_out_of_stock_items(
     db: Session = Depends(get_db)
 ):
     """Get items that are out of stock."""
-    return InventoryService.get_out_of_stock_items(db=db)
+    return InventoryService.get_out_of_stock_items(db=db, owner_id=current_user.id)
 
 
 @router.get("/reorder-suggestions")
@@ -111,7 +112,7 @@ async def get_reorder_suggestions(
     db: Session = Depends(get_db)
 ):
     """Get items that need to be reordered."""
-    return InventoryService.get_reorder_suggestions(db=db)
+    return InventoryService.get_reorder_suggestions(db=db, owner_id=current_user.id)
 
 
 @router.get("/categories")
@@ -120,7 +121,7 @@ async def get_categories(
     db: Session = Depends(get_db)
 ):
     """Get all unique categories."""
-    return {"categories": InventoryService.get_categories(db=db)}
+    return {"categories": InventoryService.get_categories(db=db, owner_id=current_user.id)}
 
 
 @router.get("/brands")
@@ -129,7 +130,7 @@ async def get_brands(
     db: Session = Depends(get_db)
 ):
     """Get all unique brands."""
-    return {"brands": InventoryService.get_brands(db=db)}
+    return {"brands": InventoryService.get_brands(db=db, owner_id=current_user.id)}
 
 
 @router.get("/{item_id}", response_model=InventoryItemResponse)

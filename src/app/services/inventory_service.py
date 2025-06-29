@@ -76,6 +76,7 @@ class InventoryService:
     @staticmethod
     def count(
         db: Session,
+        owner_id: int = None,
         search: Optional[str] = None,
         category_id: Optional[int] = None,
         brand_id: Optional[int] = None,
@@ -85,6 +86,9 @@ class InventoryService:
     ) -> int:
         """Count inventory items with filtering."""
         query = db.query(InventoryItem)
+        
+        if owner_id:
+            query = query.filter(InventoryItem.owner_id == owner_id)
         
         if is_active is not None:
             query = query.filter(InventoryItem.is_active == is_active)
@@ -253,75 +257,114 @@ class InventoryService:
         return db_movement
     
     @staticmethod
-    def get_low_stock_items(db: Session) -> List[InventoryItem]:
+    def get_low_stock_items(db: Session, owner_id: int = None) -> List[InventoryItem]:
         """Get items that are low in stock."""
-        return db.query(InventoryItem).filter(
+        query = db.query(InventoryItem).filter(
             and_(
                 InventoryItem.current_stock <= InventoryItem.minimum_stock,
                 InventoryItem.is_active == True
             )
-        ).all()
+        )
+        if owner_id:
+            query = query.filter(InventoryItem.owner_id == owner_id)
+        return query.all()
     
     @staticmethod
-    def get_out_of_stock_items(db: Session) -> List[InventoryItem]:
+    def get_out_of_stock_items(db: Session, owner_id: int = None) -> List[InventoryItem]:
         """Get items that are out of stock."""
-        return db.query(InventoryItem).filter(
+        query = db.query(InventoryItem).filter(
             and_(
                 InventoryItem.current_stock <= 0,
                 InventoryItem.is_active == True
             )
-        ).all()
+        )
+        if owner_id:
+            query = query.filter(InventoryItem.owner_id == owner_id)
+        return query.all()
     
     @staticmethod
-    def get_reorder_suggestions(db: Session) -> List[InventoryItem]:
+    def get_reorder_suggestions(db: Session, owner_id: int = None) -> List[InventoryItem]:
         """Get items that need to be reordered."""
-        return db.query(InventoryItem).filter(
+        query = db.query(InventoryItem).filter(
             and_(
                 InventoryItem.current_stock <= InventoryItem.reorder_point,
                 InventoryItem.is_active == True
             )
-        ).all()
+        )
+        if owner_id:
+            query = query.filter(InventoryItem.owner_id == owner_id)
+        return query.all()
     
     @staticmethod
-    def get_categories(db: Session) -> List[str]:
+    def get_categories(db: Session, owner_id: int = None) -> List[str]:
         """Get all unique categories from inventory items through products."""
         from app.models.category import Category
-        result = (
+        query = (
             db.query(Category.name)
             .join(Product)
             .join(InventoryItem)
             .filter(InventoryItem.is_active == True)
-            .distinct()
-            .all()
         )
+        if owner_id:
+            query = query.filter(InventoryItem.owner_id == owner_id)
+        
+        result = query.distinct().all()
         return [category[0] for category in result if category[0]]
     
     @staticmethod
-    def get_brands(db: Session) -> List[str]:
+    def get_brands(db: Session, owner_id: int = None) -> List[str]:
         """Get all unique brands from inventory items through products."""
         from app.models.brand import Brand
-        result = (
+        query = (
             db.query(Brand.name)
             .join(Product)
             .join(InventoryItem)
             .filter(InventoryItem.is_active == True)
-            .distinct()
-            .all()
         )
+        if owner_id:
+            query = query.filter(InventoryItem.owner_id == owner_id)
+        
+        result = query.distinct().all()
         return [brand[0] for brand in result if brand[0]]
     
     @staticmethod
-    def get_inventory_stats(db: Session) -> dict:
+    def get_top_selling_items(db: Session, owner_id: int, limit: int = 5) -> List[InventoryItem]:
+        """Get top selling inventory items based on order history."""
+        from app.models.order import OrderItem
+        
+        # Query to get items with highest order quantities
+        top_items_query = (
+            db.query(
+                InventoryItem,
+                func.sum(OrderItem.quantity).label('total_sold')
+            )
+            .join(OrderItem, InventoryItem.id == OrderItem.inventory_item_id)
+            .filter(InventoryItem.owner_id == owner_id)
+            .filter(InventoryItem.is_active == True)
+            .group_by(InventoryItem.id)
+            .order_by(func.sum(OrderItem.quantity).desc())
+            .limit(limit)
+        )
+        
+        # Extract just the inventory items
+        return [item[0] for item in top_items_query.all()]
+    
+    @staticmethod
+    def get_inventory_stats(db: Session, owner_id: int = None) -> dict:
         """Get inventory statistics."""
-        total_items = db.query(InventoryItem).count()
-        active_items = db.query(InventoryItem).filter(InventoryItem.is_active == True).count()
-        low_stock_items = db.query(InventoryItem).filter(
+        base_query = db.query(InventoryItem)
+        if owner_id:
+            base_query = base_query.filter(InventoryItem.owner_id == owner_id)
+        
+        total_items = base_query.count()
+        active_items = base_query.filter(InventoryItem.is_active == True).count()
+        low_stock_items = base_query.filter(
             and_(
                 InventoryItem.current_stock <= InventoryItem.minimum_stock,
                 InventoryItem.is_active == True
             )
         ).count()
-        out_of_stock_items = db.query(InventoryItem).filter(
+        out_of_stock_items = base_query.filter(
             and_(
                 InventoryItem.current_stock <= 0,
                 InventoryItem.is_active == True
@@ -329,9 +372,15 @@ class InventoryService:
         ).count()
         
         # Calculate total stock value
-        total_stock_value = db.query(
+        value_query = base_query.filter(InventoryItem.is_active == True)
+        total_stock_value = value_query.with_entities(
             func.sum(InventoryItem.current_stock * InventoryItem.cost_price)
-        ).filter(InventoryItem.is_active == True).scalar() or 0
+        ).scalar() or 0
+        
+        # Get top selling items if owner_id is provided
+        top_selling_items = []
+        if owner_id:
+            top_selling_items = InventoryService.get_top_selling_items(db, owner_id, limit=5)
         
         return {
             "total_items": total_items,
@@ -339,6 +388,7 @@ class InventoryService:
             "low_stock_items": low_stock_items,
             "out_of_stock_items": out_of_stock_items,
             "total_stock_value": float(total_stock_value),
-            "categories": InventoryService.get_categories(db),
-            "brands": InventoryService.get_brands(db)
+            "categories": InventoryService.get_categories(db, owner_id),
+            "brands": InventoryService.get_brands(db, owner_id),
+            "top_selling_items": top_selling_items
         }
