@@ -10,7 +10,7 @@ import uuid
 from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus
 from app.models.customer import Customer
 from app.models.inventory import InventoryItem
-from app.schemas.order import OrderCreate, OrderUpdate, OrderItemCreate
+from app.schemas.order import OrderCreate, OrderUpdate, OrderItemCreate, CustomerOrderCreate, CustomerOrderItemCreate
 from app.services.inventory_service import InventoryService
 from app.schemas.inventory import StockMovementCreate
 
@@ -59,6 +59,20 @@ class OrderService:
             query = query.filter(Order.created_by_user_id == owner_id)
         
         return query.first()
+    
+    @staticmethod
+    def get_by_customer(db: Session, customer_id: int) -> List[Order]:
+        """Get all orders for a specific customer."""
+        return (
+            db.query(Order)
+            .options(
+                joinedload(Order.customer),
+                joinedload(Order.order_items).joinedload(OrderItem.inventory_item)
+            )
+            .filter(Order.customer_id == customer_id)
+            .order_by(desc(Order.created_at))
+            .all()
+        )
     
     @staticmethod
     def get_all(
@@ -196,6 +210,67 @@ class OrderService:
         return OrderService.get_by_id(db, db_order.id, owner_id)
     
     @staticmethod
+    def create_customer_order(db: Session, customer_order: CustomerOrderCreate, customer_id: int, owner_id: int) -> Order:
+        """Create a new order from customer order data."""
+        # Validate customer exists
+        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        if not customer:
+            raise ValueError("Customer not found")
+        
+        # Generate order number
+        order_number = OrderService.generate_order_number()
+        
+        # Create order
+        db_order = Order(
+            order_number=order_number,
+            customer_id=customer_id,
+            status=OrderStatus.PENDING,
+            payment_status=PaymentStatus.PENDING,
+            payment_method=customer_order.payment_method,
+            order_source=customer_order.order_source or "instagram",
+            instagram_post_url=customer_order.instagram_post_url,
+            customer_notes=customer_order.customer_notes,
+            special_instructions=customer_order.special_instructions,
+            delivery_method=customer_order.delivery_method or "standard",
+            created_by_user_id=owner_id
+        )
+        
+        # Add shipping address fields
+        db_order.shipping_address_line1 = customer_order.shipping_address_line1
+        db_order.shipping_address_line2 = customer_order.shipping_address_line2
+        db_order.shipping_city = customer_order.shipping_city
+        db_order.shipping_state = customer_order.shipping_state
+        db_order.shipping_postal_code = customer_order.shipping_postal_code
+        db_order.shipping_country = customer_order.shipping_country
+        
+        db.add(db_order)
+        db.commit()
+        db.refresh(db_order)
+        
+        # Add order items
+        total_amount = 0.0
+        for item_data in customer_order.items:
+            order_item = OrderService._create_customer_order_item(db, db_order.id, item_data, owner_id)
+            total_amount += order_item.total_price
+        
+        # Update order totals
+        db_order.subtotal = total_amount
+        db_order.shipping_cost = customer_order.shipping_cost or 0.0
+        db_order.tax_amount = customer_order.tax_amount or 0.0
+        db_order.discount_amount = customer_order.discount_amount or 0.0
+        db_order.total_amount = (
+            db_order.subtotal + 
+            db_order.shipping_cost + 
+            db_order.tax_amount - 
+            db_order.discount_amount
+        )
+        
+        db.commit()
+        db.refresh(db_order)
+        
+        return OrderService.get_by_id(db, db_order.id, owner_id)
+    
+    @staticmethod
     def _create_order_item(db: Session, order_id: int, item_data: OrderItemCreate, owner_id: int) -> OrderItem:
         """Create an order item for a product and attempt automatic allocation."""
         from app.services.product_service import ProductService
@@ -242,6 +317,51 @@ class OrderService:
             requested_color=item_data.requested_color,
             requested_shade=item_data.requested_shade,
             requested_size=item_data.requested_size,
+            allocated_quantity=0,
+            fulfilled_quantity=0
+        )
+        
+        db.add(order_item)
+        db.commit()
+        db.refresh(order_item)
+        
+        return order_item
+    
+    @staticmethod
+    def _create_customer_order_item(db: Session, order_id: int, item_data: CustomerOrderItemCreate, owner_id: int) -> OrderItem:
+        """Create an order item from customer order data using inventory_item_id."""
+        # Get inventory item
+        inventory_item = db.query(InventoryItem).filter(
+            InventoryItem.id == item_data.inventory_item_id
+        ).first()
+        
+        if not inventory_item:
+            raise ValueError(f"Inventory item with ID {item_data.inventory_item_id} not found")
+        
+        # Check stock availability
+        if inventory_item.current_stock < item_data.quantity:
+            raise ValueError(
+                f"Insufficient stock for {inventory_item.name}. "
+                f"Available: {inventory_item.current_stock}, Requested: {item_data.quantity}"
+            )
+        
+        # Calculate pricing (use inventory selling price if not specified)
+        unit_price = item_data.unit_price or inventory_item.selling_price
+        total_price = unit_price * item_data.quantity
+        
+        # Create order item with inventory item reference
+        order_item = OrderItem(
+            order_id=order_id,
+            product_id=inventory_item.product_id,  # Link to product through inventory
+            inventory_item_id=inventory_item.id,
+            quantity=item_data.quantity,
+            unit_price=unit_price,
+            discount_amount=0.0,
+            total_price=total_price,
+            product_name=inventory_item.name,
+            product_sku=inventory_item.sku,
+            product_description=inventory_item.description,
+            notes=item_data.notes,
             allocated_quantity=0,
             fulfilled_quantity=0
         )

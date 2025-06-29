@@ -95,6 +95,40 @@ class OrderCreate(OrderBase):
     internal_notes: Optional[str] = None
 
 
+class CustomerOrderItemCreate(BaseModel):
+    """Customer order item creation schema."""
+    inventory_item_id: int  # Customer orders from INVENTORY
+    quantity: int = Field(..., gt=0, description="Quantity must be greater than 0")
+    unit_price: Optional[float] = None  # If not provided, use inventory selling_price
+    notes: Optional[str] = None
+
+
+class CustomerOrderCreate(BaseModel):
+    """Customer order creation schema (no customer_id required)."""
+    items: List[CustomerOrderItemCreate] = Field(..., min_length=1, description="Order must have at least one item")
+    
+    # Shipping information
+    shipping_address_line1: Optional[str] = None
+    shipping_address_line2: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_state: Optional[str] = None
+    shipping_postal_code: Optional[str] = None
+    shipping_country: str = "Nigeria"
+    delivery_method: str = "standard"
+    
+    # Order details
+    order_source: str = "instagram"
+    instagram_post_url: Optional[str] = None
+    customer_notes: Optional[str] = None
+    special_instructions: Optional[str] = None
+    
+    # Payment and pricing
+    payment_method: Optional[str] = None
+    shipping_cost: Optional[float] = 0.0
+    tax_amount: Optional[float] = 0.0
+    discount_amount: Optional[float] = 0.0
+
+
 class OrderUpdate(BaseModel):
     """Order update schema."""
     status: Optional[OrderStatus] = None

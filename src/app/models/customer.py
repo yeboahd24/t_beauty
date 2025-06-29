@@ -16,6 +16,7 @@ class Customer(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, index=True)
+    hashed_password = Column(String(255))  # For customer authentication
     phone = Column(String(20))
     instagram_handle = Column(String(100), index=True)
     

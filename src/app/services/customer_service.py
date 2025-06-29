@@ -1,11 +1,12 @@
 """
 Customer service for T-Beauty business logic.
 """
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from app.models.customer import Customer
-from app.schemas.customer import CustomerCreate, CustomerUpdate
+from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerRegister
+from app.core.security import get_password_hash, verify_password
 
 
 class CustomerService:
@@ -88,11 +89,63 @@ class CustomerService:
     @staticmethod
     def create(db: Session, customer_create: CustomerCreate) -> Customer:
         """Create a new customer."""
-        db_customer = Customer(**customer_create.model_dump())
+        customer_data = customer_create.model_dump()
+        
+        # Hash password if provided
+        if customer_data.get('password'):
+            customer_data['hashed_password'] = get_password_hash(customer_data.pop('password'))
+        
+        db_customer = Customer(**customer_data)
         db.add(db_customer)
         db.commit()
         db.refresh(db_customer)
         return db_customer
+    
+    @staticmethod
+    def register(db: Session, customer_register: CustomerRegister) -> Customer:
+        """Register a new customer with authentication."""
+        customer_data = customer_register.model_dump()
+        
+        # Hash the password
+        customer_data['hashed_password'] = get_password_hash(customer_data.pop('password'))
+        
+        db_customer = Customer(**customer_data)
+        db.add(db_customer)
+        db.commit()
+        db.refresh(db_customer)
+        return db_customer
+    
+    @staticmethod
+    def authenticate(db: Session, email: str, password: str) -> Optional[Customer]:
+        """Authenticate customer with email and password."""
+        customer = CustomerService.get_by_email(db, email)
+        if not customer:
+            return None
+        if not customer.hashed_password:
+            return None  # Customer doesn't have password set
+        if not verify_password(password, customer.hashed_password):
+            return None
+        return customer
+    
+    @staticmethod
+    def authenticate_with_details(db: Session, email: str, password: str) -> Tuple[Optional[Customer], str]:
+        """Authenticate customer and return detailed result."""
+        customer = CustomerService.get_by_email(db, email)
+        if not customer:
+            return None, 'customer_not_found'
+        
+        if not customer.hashed_password:
+            return None, 'no_password_set'
+        
+        if not verify_password(password, customer.hashed_password):
+            return None, 'invalid_password'
+        
+        return customer, 'success'
+    
+    @staticmethod
+    def is_active(customer: Customer) -> bool:
+        """Check if customer is active."""
+        return customer.is_active
     
     @staticmethod
     def update(

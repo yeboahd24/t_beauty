@@ -26,7 +26,29 @@ class CustomerBase(BaseModel):
 
 class CustomerCreate(CustomerBase):
     """Customer creation schema."""
-    pass
+    password: Optional[str] = None  # Optional for business-created customers
+
+
+class CustomerRegister(BaseModel):
+    """Customer self-registration schema."""
+    first_name: str
+    last_name: str
+    email: str
+    password: str
+    phone: Optional[str] = None
+    instagram_handle: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: str = "Nigeria"
+
+
+class CustomerLogin(BaseModel):
+    """Customer login schema."""
+    email: str
+    password: str
 
 
 class CustomerUpdate(BaseModel):

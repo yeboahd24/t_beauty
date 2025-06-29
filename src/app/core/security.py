@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
+from app.models.customer import Customer
 from app.schemas.auth import TokenData
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -84,3 +85,58 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
             detail="Inactive user"
         )
     return current_user
+
+
+def verify_customer_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenData:
+    """Verify JWT token for customer and return token data."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        token_type: str = payload.get("type")
+        
+        if email is None:
+            raise credentials_exception
+        
+        # Verify this is a customer token
+        if token_type != "customer":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid token type for customer access"
+            )
+            
+        token_data = TokenData(email=email)
+    except JWTError:
+        raise credentials_exception
+    
+    return token_data
+
+
+def get_current_customer(
+    token_data: TokenData = Depends(verify_customer_token), 
+    db: Session = Depends(get_db)
+) -> Customer:
+    """Get current customer from token."""
+    customer = db.query(Customer).filter(Customer.email == token_data.email).first()
+    if customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Customer not found"
+        )
+    return customer
+
+
+def get_current_active_customer(current_customer: Customer = Depends(get_current_customer)) -> Customer:
+    """Get current active customer."""
+    if not current_customer.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Customer account is inactive"
+        )
+    return current_customer
