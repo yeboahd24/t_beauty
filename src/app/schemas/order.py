@@ -175,13 +175,15 @@ class PaymentUpdate(BaseModel):
 
 class OrderStats(BaseModel):
     """Order statistics schema."""
+    period_days: int
     total_orders: int
     pending_orders: int
-    processing_orders: int
+    confirmed_orders: int
     shipped_orders: int
     delivered_orders: int
     cancelled_orders: int
     total_revenue: float
+    pending_revenue: float
     average_order_value: float
 
 
