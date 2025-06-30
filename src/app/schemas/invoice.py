@@ -114,6 +114,7 @@ class PaymentUpdate(BaseModel):
     is_verified: Optional[bool] = None
     verification_notes: Optional[str] = None
     notes: Optional[str] = None
+    receipt_url: Optional[str] = None
 
 
 class PaymentResponse(BaseModel):
@@ -155,10 +156,15 @@ class InvoiceStats(BaseModel):
 
 class PaymentStats(BaseModel):
     """Payment statistics schema."""
+    period_days: Optional[int] = None
+    all_time: bool = False
     total_payments: int
     verified_payments: int
     unverified_payments: int
     total_amount: float
+    verified_amount: float
+    unverified_amount: float
+    average_payment_amount: float
     payment_methods: dict
 
 

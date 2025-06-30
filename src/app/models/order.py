@@ -93,6 +93,7 @@ class Order(Base):
     customer = relationship("Customer", back_populates="orders")
     order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     invoices = relationship("Invoice", back_populates="order")
+    payments = relationship("Payment", back_populates="order")
     created_by = relationship("User")
     
     @property

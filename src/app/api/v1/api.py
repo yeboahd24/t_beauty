@@ -2,7 +2,7 @@
 API v1 router for T-Beauty Business Management System.
 """
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, products, customers, inventory, brands, categories, orders, customer_auth, customer_orders
+from app.api.v1.endpoints import auth, products, customers, inventory, brands, categories, orders, customer_auth, customer_orders, invoices, payments, analytics
 
 api_router = APIRouter()
 
@@ -25,7 +25,11 @@ api_router.include_router(orders.router, prefix="/orders", tags=["Order Manageme
 api_router.include_router(customer_auth.router, prefix="/customer/auth", tags=["Customer Authentication"])
 api_router.include_router(customer_orders.router, prefix="/customer/orders", tags=["Customer Orders"])
 
-# TODO: Add remaining endpoints
-# api_router.include_router(invoices.router, prefix="/invoices", tags=["Invoice Management"])
-# api_router.include_router(payments.router, prefix="/payments", tags=["Payment Management"])
-# api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics & Reporting"])
+# Invoice Management
+api_router.include_router(invoices.router, prefix="/invoices", tags=["Invoice Management"])
+
+# Payment Management
+api_router.include_router(payments.router, prefix="/payments", tags=["Payment Management"])
+
+# Analytics & Reporting
+api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics & Reporting"])

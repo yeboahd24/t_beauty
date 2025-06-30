@@ -44,6 +44,7 @@ class Customer(Base):
     # Relationships
     orders = relationship("Order", back_populates="customer")
     invoices = relationship("Invoice", back_populates="customer")
+    payments = relationship("Payment", back_populates="customer")
     
     @property
     def full_name(self):

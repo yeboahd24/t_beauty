@@ -1,6 +1,6 @@
 # T-Beauty Business Management System
 
-A comprehensive business management system built with FastAPI for Instagram-based cosmetics retailers, featuring customer management, inventory tracking, order processing, and more.
+A comprehensive business management system built with FastAPI for Instagram-based cosmetics retailers, featuring customer management, inventory tracking, order processing, payment management, invoicing, and powerful analytics for business intelligence.
 
 ## 🚀 Features
 
@@ -25,6 +25,15 @@ A comprehensive business management system built with FastAPI for Instagram-base
 - Inventory valuation and analytics
 - Reorder point management
 - Stock movement history
+
+### 📈 Analytics & Business Intelligence
+- Comprehensive statistics across all modules (payments, invoices, orders, customers, inventory)
+- All-time statistics by default for immediate insights
+- Flexible time-based filtering (30 days, 90 days, custom periods)
+- Revenue and profit analysis with detailed breakdowns
+- Customer behavior and lifetime value analytics
+- Performance dashboards and business reports
+- Real-time KPIs and growth metrics
 
 ### 🏗️ Architecture
 - Clean architecture with separation of concerns
@@ -150,6 +159,54 @@ A comprehensive business management system built with FastAPI for Instagram-base
 - `DELETE /products/{id}` - Delete a product
 - `GET /products/stats/summary` - Get product statistics
 
+### Customers
+- `POST /customers/` - Create a new customer
+- `GET /customers/` - Get all customers (with pagination and search)
+- `GET /customers/{id}` - Get a specific customer
+- `PUT /customers/{id}` - Update a customer
+- `DELETE /customers/{id}` - Delete a customer
+- `GET /customers/stats` - Get customer statistics
+
+### Orders
+- `POST /orders/` - Create a new order
+- `GET /orders/` - Get all orders (with pagination and filtering)
+- `GET /orders/{id}` - Get a specific order
+- `PUT /orders/{id}` - Update an order
+- `DELETE /orders/{id}` - Delete an order
+- `GET /orders/stats` - Get order statistics
+
+### Inventory
+- `POST /inventory/` - Create a new inventory item
+- `GET /inventory/` - Get all inventory items (with pagination and filtering)
+- `GET /inventory/{id}` - Get a specific inventory item
+- `PUT /inventory/{id}` - Update an inventory item
+- `DELETE /inventory/{id}` - Delete an inventory item
+- `GET /inventory/stats` - Get inventory statistics
+
+### Invoices
+- `POST /invoices/` - Create a new invoice
+- `GET /invoices/` - Get all invoices (with pagination and filtering)
+- `GET /invoices/{id}` - Get a specific invoice
+- `PUT /invoices/{id}` - Update an invoice
+- `DELETE /invoices/{id}` - Delete an invoice
+- `GET /invoices/stats` - Get invoice statistics
+- `GET /invoices/stats/summary` - Get invoice statistics summary
+
+### Payments
+- `POST /payments/` - Create a new payment
+- `GET /payments/` - Get all payments (with pagination and filtering)
+- `GET /payments/{id}` - Get a specific payment
+- `PUT /payments/{id}` - Update a payment
+- `DELETE /payments/{id}` - Delete a payment
+- `GET /payments/stats` - Get payment statistics
+- `GET /payments/stats/summary` - Get payment statistics summary
+- `POST /payments/{id}/verify` - Verify a payment
+- `POST /payments/{id}/unverify` - Unverify a payment
+
+### Analytics
+- `GET /analytics/dashboard` - Get comprehensive dashboard analytics
+- `GET /analytics/reports` - Get detailed business reports
+
 ## Usage Examples
 
 ### Register a new user
@@ -184,6 +241,149 @@ curl -X POST "http://localhost:8000/products/" \
 curl -X GET "http://localhost:8000/products/?page=1&size=10&search=sample" \
      -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
+
+## 📊 Analytics & Statistics
+
+T-Beauty provides comprehensive analytics and statistics across all business modules. All stats endpoints support flexible time-based filtering and return detailed insights for business intelligence.
+
+### 🎯 Default Behavior
+
+**All statistics endpoints default to all-time data** to ensure you see meaningful results immediately:
+
+- `GET /payments/stats` - Returns all-time payment statistics
+- `GET /invoices/stats` - Returns all-time invoice statistics  
+- `GET /orders/stats` - Returns all-time order statistics
+- `GET /customers/stats` - Returns all-time customer statistics
+- `GET /inventory/stats` - Returns all-time inventory statistics
+
+### ⏰ Time-Based Filtering
+
+All stats endpoints support optional time-based filtering:
+
+```bash
+# Get all-time statistics (default)
+GET /api/v1/payments/stats
+
+# Get statistics for specific time period
+GET /api/v1/payments/stats?all_time=false&days=30
+
+# Get statistics for last 90 days
+GET /api/v1/payments/stats?all_time=false&days=90
+```
+
+**Query Parameters:**
+- `all_time` (boolean, default: `true`) - Get all-time statistics
+- `days` (integer, default: `30`) - Number of days when `all_time=false`
+
+### 💰 Payment Statistics
+
+```bash
+GET /api/v1/payments/stats
+```
+
+**Returns:**
+```json
+{
+  "period_days": null,
+  "all_time": true,
+  "total_payments": 234,
+  "verified_payments": 198,
+  "unverified_payments": 36,
+  "total_amount": 67890.12,
+  "verified_amount": 58234.50,
+  "unverified_amount": 9655.62,
+  "average_payment_amount": 290.13,
+  "payment_methods": {
+    "bank_transfer": {"count": 89, "amount": 25678.90},
+    "mobile_money": {"count": 95, "amount": 28456.78},
+    "pos": {"count": 38, "amount": 11234.56},
+    "cash": {"count": 12, "amount": 2519.88}
+  }
+}
+```
+
+### 📄 Invoice Statistics
+
+```bash
+GET /api/v1/invoices/stats
+```
+
+**Returns:**
+- Total invoices by status (draft, sent, paid, overdue)
+- Revenue metrics (total amount, amount paid, outstanding)
+- Average invoice value and payment time
+- Monthly trends and growth metrics
+
+### 🛒 Order Statistics
+
+```bash
+GET /api/v1/orders/stats
+```
+
+**Returns:**
+- Order counts by status (pending, confirmed, shipped, delivered)
+- Revenue and profit metrics
+- Average order value and fulfillment time
+- Top-selling products and categories
+
+### 👥 Customer Statistics
+
+```bash
+GET /api/v1/customers/stats
+```
+
+**Returns:**
+- Total customers and growth metrics
+- Customer lifetime value analysis
+- Purchase frequency and behavior patterns
+- VIP customer identification
+
+### 📦 Inventory Statistics
+
+```bash
+GET /api/v1/inventory/stats
+```
+
+**Returns:**
+- Total inventory value and potential revenue
+- Stock levels and reorder alerts
+- Profit margin analysis by product
+- Turnover rates and performance metrics
+
+### 🎛️ Comprehensive Dashboard
+
+```bash
+GET /api/v1/analytics/dashboard
+```
+
+**Returns a unified dashboard with:**
+- Key performance indicators (KPIs)
+- Revenue and profit trends
+- Customer and order insights
+- Inventory health metrics
+- Recent activity summaries
+
+### 📈 Advanced Reports
+
+```bash
+GET /api/v1/analytics/reports
+```
+
+**Returns detailed business reports including:**
+- Financial performance analysis
+- Customer segmentation insights
+- Product performance rankings
+- Seasonal trends and forecasting
+
+### 🔄 Consistency with List Endpoints
+
+Statistics endpoints maintain consistency with their corresponding list endpoints:
+
+- **List endpoints** (e.g., `GET /payments/`) include stats in the response
+- **Stats endpoints** (e.g., `GET /payments/stats`) provide the same statistics with additional filtering options
+- Both use `all_time=true` by default to ensure data visibility
+
+This design ensures that whether you're viewing paginated lists or dedicated analytics, you'll see consistent and meaningful business insights.
 
 ## Database Models
 
