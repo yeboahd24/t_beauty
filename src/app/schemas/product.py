@@ -18,11 +18,15 @@ class ProductBase(BaseModel):
     category_id: Optional[int] = None
     weight: Optional[float] = None
     dimensions: Optional[str] = None
+    
+    # Image fields
+    primary_image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
 
 
 class ProductCreate(ProductBase):
     """Product creation schema."""
-    pass
+    additional_image_urls: Optional[List[str]] = None  # List of additional image URLs
 
 
 class ProductUpdate(BaseModel):
@@ -38,6 +42,11 @@ class ProductUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_featured: Optional[bool] = None
     is_discontinued: Optional[bool] = None
+    
+    # Image fields
+    primary_image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    additional_image_urls: Optional[List[str]] = None
 
 
 class ProductResponse(ProductBase):
@@ -56,6 +65,32 @@ class ProductResponse(ProductBase):
     total_stock: int = 0
     available_stock: int = 0
     is_in_stock: bool = False
+    
+    # Computed image fields
+    all_image_urls: List[str] = []
+    display_image_url: Optional[str] = None
+    
+    model_config = {"from_attributes": True}
+
+
+class ProductImageUpdate(BaseModel):
+    """Product image update schema."""
+    primary_image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    additional_image_urls: Optional[List[str]] = None
+
+
+class ProductSummary(BaseModel):
+    """Product summary for lists and references."""
+    id: int
+    name: str
+    sku: str
+    base_price: float
+    display_image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    is_active: bool
+    is_in_stock: bool
+    total_stock: int = 0
     
     model_config = {"from_attributes": True}
 

@@ -22,6 +22,11 @@ class Product(Base):
     weight = Column(Float)  # For shipping calculations
     dimensions = Column(String(100))  # L x W x H
     
+    # Product images
+    primary_image_url = Column(String(500))  # Main product image
+    image_urls = Column(Text)  # JSON array of additional image URLs
+    thumbnail_url = Column(String(500))  # Optimized thumbnail image
+    
     # Product categorization
     brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
@@ -60,3 +65,43 @@ class Product(Base):
     def is_in_stock(self):
         """Check if product has any available stock."""
         return self.available_stock > 0
+    
+    @property
+    def all_image_urls(self):
+        """Get all image URLs as a list."""
+        import json
+        images = []
+        
+        # Add primary image if exists
+        if self.primary_image_url:
+            images.append(self.primary_image_url)
+        
+        # Add additional images if exists
+        if self.image_urls:
+            try:
+                additional_images = json.loads(self.image_urls)
+                if isinstance(additional_images, list):
+                    images.extend(additional_images)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        return images
+    
+    @property
+    def display_image_url(self):
+        """Get the best image URL for display (primary, thumbnail, or first available)."""
+        if self.primary_image_url:
+            return self.primary_image_url
+        elif self.thumbnail_url:
+            return self.thumbnail_url
+        elif self.all_image_urls:
+            return self.all_image_urls[0]
+        return None
+    
+    def set_image_urls(self, image_urls_list):
+        """Set additional image URLs from a list."""
+        import json
+        if image_urls_list and isinstance(image_urls_list, list):
+            self.image_urls = json.dumps(image_urls_list)
+        else:
+            self.image_urls = None

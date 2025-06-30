@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse
+from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse, ProductImageUpdate
 from app.services.product_service import ProductService
 from app.models.user import User
 from app.core.security import get_current_active_user
@@ -130,3 +130,51 @@ async def delete_product(
             detail="Product not found"
         )
     return None
+
+
+@router.put("/{product_id}/images", response_model=ProductResponse)
+async def update_product_images(
+    product_id: int,
+    image_update: ProductImageUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Update product images specifically."""
+    product = ProductService.update_images(
+        db=db,
+        product_id=product_id,
+        primary_image_url=image_update.primary_image_url,
+        thumbnail_url=image_update.thumbnail_url,
+        additional_image_urls=image_update.additional_image_urls,
+        owner_id=current_user.id
+    )
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+    return product
+
+
+@router.get("/{product_id}/images")
+async def get_product_images(
+    product_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get all image URLs for a product."""
+    product = ProductService.get_by_id(db=db, product_id=product_id, owner_id=current_user.id)
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+    
+    return {
+        "product_id": product.id,
+        "primary_image_url": product.primary_image_url,
+        "thumbnail_url": product.thumbnail_url,
+        "additional_image_urls": product.all_image_urls[1:] if len(product.all_image_urls) > 1 else [],
+        "all_image_urls": product.all_image_urls,
+        "display_image_url": product.display_image_url
+    }

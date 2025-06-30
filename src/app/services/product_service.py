@@ -109,10 +109,19 @@ class ProductService:
         if existing_product:
             raise ValueError(f"Product with SKU '{product_create.sku}' already exists")
         
+        # Extract additional image URLs before creating product
+        product_data = product_create.model_dump()
+        additional_image_urls = product_data.pop('additional_image_urls', None)
+        
         db_product = Product(
-            **product_create.model_dump(),
+            **product_data,
             owner_id=owner_id
         )
+        
+        # Set additional image URLs if provided
+        if additional_image_urls:
+            db_product.set_image_urls(additional_image_urls)
+        
         db.add(db_product)
         db.commit()
         db.refresh(db_product)
@@ -131,8 +140,45 @@ class ProductService:
             return None
         
         update_data = product_update.model_dump(exclude_unset=True)
+        
+        # Handle additional image URLs separately
+        additional_image_urls = update_data.pop('additional_image_urls', None)
+        
+        # Update regular fields
         for field, value in update_data.items():
             setattr(db_product, field, value)
+        
+        # Update additional image URLs if provided
+        if additional_image_urls is not None:
+            db_product.set_image_urls(additional_image_urls)
+        
+        db.commit()
+        db.refresh(db_product)
+        return db_product
+    
+    @staticmethod
+    def update_images(
+        db: Session, 
+        product_id: int, 
+        primary_image_url: Optional[str] = None,
+        thumbnail_url: Optional[str] = None,
+        additional_image_urls: Optional[List[str]] = None,
+        owner_id: int = None
+    ) -> Optional[Product]:
+        """Update product images specifically."""
+        db_product = ProductService.get_by_id(db, product_id, owner_id)
+        if not db_product:
+            return None
+        
+        # Update image fields
+        if primary_image_url is not None:
+            db_product.primary_image_url = primary_image_url
+        
+        if thumbnail_url is not None:
+            db_product.thumbnail_url = thumbnail_url
+        
+        if additional_image_urls is not None:
+            db_product.set_image_urls(additional_image_urls)
         
         db.commit()
         db.refresh(db_product)

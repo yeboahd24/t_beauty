@@ -75,6 +75,11 @@ class InventoryItemResponse(InventoryItemBase):
     brand: Optional[BrandSummary] = None  # From product
     category: Optional[CategorySummary] = None  # From product
     
+    # Image properties from linked product
+    primary_image_url: Optional[str] = None  # From product
+    thumbnail_url: Optional[str] = None  # From product
+    display_image_url: Optional[str] = None  # From product
+    
     # Computed properties
     is_low_stock: bool = False
     is_out_of_stock: bool = False
@@ -97,6 +102,10 @@ class InventoryItemSummary(BaseModel):
     sku: Optional[str] = None  # From product
     brand: Optional[BrandSummary] = None  # From product
     category: Optional[CategorySummary] = None  # From product
+    
+    # Image properties from linked product
+    thumbnail_url: Optional[str] = None  # From product
+    display_image_url: Optional[str] = None  # From product
     
     model_config = {"from_attributes": True}
 
