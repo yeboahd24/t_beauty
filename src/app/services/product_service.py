@@ -141,14 +141,15 @@ class ProductService:
         
         update_data = product_update.model_dump(exclude_unset=True)
         
-        # Handle additional image URLs separately
+        # Handle additional image URLs separately - must be removed before regular field updates
         additional_image_urls = update_data.pop('additional_image_urls', None)
         
-        # Update regular fields
+        # Update regular fields (excluding additional_image_urls which doesn't exist on the model)
         for field, value in update_data.items():
-            setattr(db_product, field, value)
+            if hasattr(db_product, field):  # Only set fields that exist on the model
+                setattr(db_product, field, value)
         
-        # Update additional image URLs if provided
+        # Update additional image URLs if provided using the proper method
         if additional_image_urls is not None:
             db_product.set_image_urls(additional_image_urls)
         
@@ -166,23 +167,46 @@ class ProductService:
         owner_id: int = None
     ) -> Optional[Product]:
         """Update product images specifically."""
-        db_product = ProductService.get_by_id(db, product_id, owner_id)
-        if not db_product:
-            return None
-        
-        # Update image fields
-        if primary_image_url is not None:
-            db_product.primary_image_url = primary_image_url
-        
-        if thumbnail_url is not None:
-            db_product.thumbnail_url = thumbnail_url
-        
-        if additional_image_urls is not None:
-            db_product.set_image_urls(additional_image_urls)
-        
-        db.commit()
-        db.refresh(db_product)
-        return db_product
+        try:
+            db_product = ProductService.get_by_id(db, product_id, owner_id)
+            if not db_product:
+                return None
+            
+            # Update image fields
+            if primary_image_url is not None:
+                db_product.primary_image_url = primary_image_url
+            
+            if thumbnail_url is not None:
+                db_product.thumbnail_url = thumbnail_url
+            
+            if additional_image_urls is not None:
+                # Always use the set_image_urls method to ensure proper JSON serialization
+                if isinstance(additional_image_urls, list):
+                    db_product.set_image_urls(additional_image_urls)
+                elif isinstance(additional_image_urls, str):
+                    # If it's already a JSON string, try to parse it first
+                    import json
+                    try:
+                        parsed_urls = json.loads(additional_image_urls)
+                        if isinstance(parsed_urls, list):
+                            db_product.set_image_urls(parsed_urls)
+                        else:
+                            # If it's not a list after parsing, set to None
+                            db_product.set_image_urls(None)
+                    except json.JSONDecodeError:
+                        # If it's not valid JSON, set to None
+                        db_product.set_image_urls(None)
+                else:
+                    # For any other type, set to None
+                    db_product.set_image_urls(None)
+            
+            db.commit()
+            db.refresh(db_product)
+            return db_product
+            
+        except Exception as e:
+            db.rollback()
+            raise
     
     @staticmethod
     def delete(db: Session, product_id: int, owner_id: int) -> bool:

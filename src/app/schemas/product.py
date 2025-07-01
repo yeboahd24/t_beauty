@@ -80,6 +80,36 @@ class ProductImageUpdate(BaseModel):
     additional_image_urls: Optional[List[str]] = None
 
 
+class ProductFormData(BaseModel):
+    """Product form data schema for file uploads."""
+    name: str
+    description: Optional[str] = None
+    base_price: float
+    sku: str
+    brand_id: Optional[int] = None
+    category_id: Optional[int] = None
+    weight: Optional[float] = None
+    dimensions: Optional[str] = None
+    is_active: Optional[bool] = True
+    is_featured: Optional[bool] = False
+    is_discontinued: Optional[bool] = False
+
+
+class ProductUpdateFormData(BaseModel):
+    """Product update form data schema for file uploads."""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    base_price: Optional[float] = None
+    sku: Optional[str] = None
+    brand_id: Optional[int] = None
+    category_id: Optional[int] = None
+    weight: Optional[float] = None
+    dimensions: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_featured: Optional[bool] = None
+    is_discontinued: Optional[bool] = None
+
+
 class ProductSummary(BaseModel):
     """Product summary for lists and references."""
     id: int
