@@ -201,10 +201,32 @@ class PaymentService:
     @staticmethod
     def create(db: Session, payment_create: PaymentCreate, owner_id: int) -> Payment:
         """Create a new payment record."""
+        # Determine customer_id: either from request or from order
+        customer_id = payment_create.customer_id
+        
+        # If customer_id not provided, try to get it from order
+        if not customer_id and payment_create.order_id:
+            order = db.query(Order).filter(Order.id == payment_create.order_id).first()
+            if not order:
+                raise ValueError("Order not found")
+            customer_id = order.customer_id
+        
+        # Validate that we have a customer_id
+        if not customer_id:
+            raise ValueError("Either customer_id or order_id must be provided")
+        
         # Validate customer exists
-        customer = db.query(Customer).filter(Customer.id == payment_create.customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == customer_id).first()
         if not customer:
             raise ValueError("Customer not found")
+        
+        # Validate order exists and belongs to customer if provided
+        if payment_create.order_id:
+            order = db.query(Order).filter(Order.id == payment_create.order_id).first()
+            if not order:
+                raise ValueError("Order not found")
+            if order.customer_id != customer_id:
+                raise ValueError("Order does not belong to the specified customer")
         
         # Validate invoice exists if provided
         if payment_create.invoice_id:
@@ -213,7 +235,7 @@ class PaymentService:
                 raise ValueError("Invoice not found")
             
             # Check if invoice belongs to the same customer
-            if invoice.customer_id != payment_create.customer_id:
+            if invoice.customer_id != customer_id:
                 raise ValueError("Invoice does not belong to the specified customer")
         
         # Generate payment reference
@@ -223,7 +245,7 @@ class PaymentService:
         db_payment = Payment(
             payment_reference=payment_reference,
             invoice_id=payment_create.invoice_id,
-            customer_id=payment_create.customer_id,
+            customer_id=customer_id,  # Use the derived customer_id
             order_id=payment_create.order_id,
             amount=payment_create.amount,
             payment_method=payment_create.payment_method,

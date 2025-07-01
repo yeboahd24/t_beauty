@@ -91,9 +91,12 @@ class CustomerService:
         """Create a new customer."""
         customer_data = customer_create.model_dump()
         
-        # Hash password if provided
+        # Hash password if provided, otherwise remove the field
         if customer_data.get('password'):
             customer_data['hashed_password'] = get_password_hash(customer_data.pop('password'))
+        else:
+            # Remove password field if it exists but is None/empty
+            customer_data.pop('password', None)
         
         db_customer = Customer(**customer_data)
         db.add(db_customer)

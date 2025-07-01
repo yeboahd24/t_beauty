@@ -3,7 +3,7 @@ Invoice and payment schemas for T-Beauty.
 """
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from app.models.invoice import InvoiceStatus, PaymentMethod
 
 
@@ -95,7 +95,7 @@ class InvoiceSummary(BaseModel):
 class PaymentCreate(BaseModel):
     """Payment creation schema."""
     invoice_id: Optional[int] = None
-    customer_id: int
+    customer_id: Optional[int] = None  # Optional when order_id is provided
     order_id: Optional[int] = None
     amount: float
     payment_method: PaymentMethod
@@ -107,6 +107,15 @@ class PaymentCreate(BaseModel):
     mobile_money_number: Optional[str] = None
     notes: Optional[str] = None
     receipt_url: Optional[str] = None
+    
+    @model_validator(mode='before')
+    @classmethod
+    def validate_customer_or_order(cls, values):
+        """Validate that either customer_id or order_id is provided."""
+        if isinstance(values, dict):
+            if not values.get('customer_id') and not values.get('order_id'):
+                raise ValueError('Either customer_id or order_id must be provided')
+        return values
 
 
 class PaymentUpdate(BaseModel):
