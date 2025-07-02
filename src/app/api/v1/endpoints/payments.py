@@ -206,7 +206,7 @@ async def verify_payment(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Verify a payment and update related invoice."""
+    """Verify a payment and update related invoice and order."""
     try:
         payment = PaymentService.verify_payment(
             db=db,
@@ -214,13 +214,29 @@ async def verify_payment(
             owner_id=current_user.id,
             verification_notes=verification_notes
         )
+        
+        # Get updated order information if payment is linked to an order
+        order_info = None
+        if payment.order_id and payment.order:
+            order_info = {
+                "order_id": payment.order.id,
+                "order_number": payment.order.order_number,
+                "order_status": payment.order.status.value,
+                "payment_status": payment.order.payment_status.value,
+                "total_amount": payment.order.total_amount,
+                "amount_paid": payment.order.amount_paid,
+                "outstanding_amount": payment.order.outstanding_amount
+            }
+        
         return {
             "message": "Payment verified successfully",
             "payment_id": payment.id,
             "payment_reference": payment.payment_reference,
             "amount": payment.amount,
             "verification_date": payment.verification_date,
-            "invoice_updated": payment.invoice_id is not None
+            "invoice_updated": payment.invoice_id is not None,
+            "order_updated": payment.order_id is not None,
+            "order_info": order_info
         }
     except ValueError as e:
         raise HTTPException(
@@ -236,7 +252,7 @@ async def unverify_payment(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Unverify a payment and update related invoice."""
+    """Unverify a payment and update related invoice and order."""
     try:
         payment = PaymentService.unverify_payment(
             db=db,
@@ -244,13 +260,29 @@ async def unverify_payment(
             owner_id=current_user.id,
             reason=reason
         )
+        
+        # Get updated order information if payment is linked to an order
+        order_info = None
+        if payment.order_id and payment.order:
+            order_info = {
+                "order_id": payment.order.id,
+                "order_number": payment.order.order_number,
+                "order_status": payment.order.status.value,
+                "payment_status": payment.order.payment_status.value,
+                "total_amount": payment.order.total_amount,
+                "amount_paid": payment.order.amount_paid,
+                "outstanding_amount": payment.order.outstanding_amount
+            }
+        
         return {
             "message": "Payment unverified",
             "payment_id": payment.id,
             "payment_reference": payment.payment_reference,
             "amount": payment.amount,
             "reason": reason,
-            "invoice_updated": payment.invoice_id is not None
+            "invoice_updated": payment.invoice_id is not None,
+            "order_updated": payment.order_id is not None,
+            "order_info": order_info
         }
     except ValueError as e:
         raise HTTPException(

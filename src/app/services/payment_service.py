@@ -9,7 +9,7 @@ import uuid
 
 from app.models.invoice import Payment, PaymentMethod, Invoice
 from app.models.customer import Customer
-from app.models.order import Order
+from app.models.order import Order, OrderStatus, PaymentStatus
 from app.schemas.invoice import PaymentCreate, PaymentUpdate
 from app.services.invoice_service import InvoiceService
 
@@ -294,7 +294,7 @@ class PaymentService:
         owner_id: int,
         verification_notes: Optional[str] = None
     ) -> Payment:
-        """Verify a payment and update related invoice."""
+        """Verify a payment and update related invoice and order."""
         db_payment = PaymentService.get_by_id(db, payment_id, owner_id)
         if not db_payment:
             raise ValueError("Payment not found")
@@ -320,6 +320,25 @@ class PaymentService:
                     invoice.status = "paid"
                     invoice.paid_at = datetime.utcnow()
         
+        # Update related order if exists
+        if db_payment.order_id:
+            order = db.query(Order).filter(Order.id == db_payment.order_id).first()
+            if order:
+                # Add payment amount to order
+                order.amount_paid += db_payment.amount
+                
+                # Update payment status based on amount paid
+                if order.amount_paid >= order.total_amount:
+                    order.payment_status = PaymentStatus.PAID
+                    # If order is pending and now fully paid, move to confirmed
+                    if order.status == OrderStatus.PENDING:
+                        order.status = OrderStatus.CONFIRMED
+                        order.confirmed_at = datetime.utcnow()
+                elif order.amount_paid > 0:
+                    order.payment_status = PaymentStatus.PARTIAL
+                else:
+                    order.payment_status = PaymentStatus.PENDING
+        
         db.commit()
         db.refresh(db_payment)
         
@@ -332,7 +351,7 @@ class PaymentService:
         owner_id: int,
         reason: Optional[str] = None
     ) -> Payment:
-        """Unverify a payment and update related invoice."""
+        """Unverify a payment and update related invoice and order."""
         db_payment = PaymentService.get_by_id(db, payment_id, owner_id)
         if not db_payment:
             raise ValueError("Payment not found")
@@ -351,6 +370,25 @@ class PaymentService:
                 if invoice.status == "paid" and invoice.amount_paid < invoice.total_amount:
                     invoice.status = "sent"  # Revert to sent status
                     invoice.paid_at = None
+        
+        # Remove payment amount from related order if exists
+        if db_payment.order_id:
+            order = db.query(Order).filter(Order.id == db_payment.order_id).first()
+            if order:
+                # Subtract payment amount from order
+                order.amount_paid = max(0, order.amount_paid - db_payment.amount)
+                
+                # Update payment status based on remaining amount paid
+                if order.amount_paid >= order.total_amount:
+                    order.payment_status = PaymentStatus.PAID
+                elif order.amount_paid > 0:
+                    order.payment_status = PaymentStatus.PARTIAL
+                else:
+                    order.payment_status = PaymentStatus.PENDING
+                    # If order was confirmed only due to payment, revert to pending
+                    if order.status == OrderStatus.CONFIRMED and order.amount_paid == 0:
+                        order.status = OrderStatus.PENDING
+                        order.confirmed_at = None
         
         # Mark payment as unverified
         db_payment.is_verified = False
