@@ -126,6 +126,19 @@ class PaymentUpdate(BaseModel):
     receipt_url: Optional[str] = None
 
 
+class CustomerInfo(BaseModel):
+    """Customer information for payment response."""
+    id: int
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    instagram_handle: Optional[str] = None
+    is_vip: bool = False
+    
+    model_config = {"from_attributes": True}
+
+
 class PaymentResponse(BaseModel):
     """Payment response schema."""
     id: int
@@ -148,6 +161,7 @@ class PaymentResponse(BaseModel):
     receipt_url: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    customer: Optional[CustomerInfo] = None
     
     model_config = {"from_attributes": True}
 
