@@ -392,3 +392,104 @@ class InventoryService:
             "brands": InventoryService.get_brands(db, owner_id),
             "top_selling_items": top_selling_items
         }
+    
+    @staticmethod
+    def get_all_customer_facing(
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        category_id: Optional[int] = None,
+        brand_id: Optional[int] = None,
+        search: Optional[str] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
+        in_stock_only: bool = True
+    ) -> List[InventoryItem]:
+        """Get inventory items for customer browsing."""
+        query = (
+            db.query(InventoryItem)
+            .options(
+                joinedload(InventoryItem.product).joinedload(Product.category),
+                joinedload(InventoryItem.product).joinedload(Product.brand)
+            )
+            .filter(InventoryItem.is_active == True)
+            .order_by(InventoryItem.created_at.desc())
+        )
+        
+        # Apply filters
+        if category_id:
+            query = query.filter(InventoryItem.product.has(Product.category_id == category_id))
+        
+        if brand_id:
+            query = query.filter(InventoryItem.product.has(Product.brand_id == brand_id))
+        
+        if search:
+            query = query.filter(
+                InventoryItem.name.contains(search) |
+                InventoryItem.description.contains(search) |
+                InventoryItem.product.has(Product.name.contains(search)) |
+                InventoryItem.product.has(Product.description.contains(search))
+            )
+        
+        if min_price is not None:
+            query = query.filter(InventoryItem.selling_price >= min_price)
+        
+        if max_price is not None:
+            query = query.filter(InventoryItem.selling_price <= max_price)
+        
+        if in_stock_only:
+            query = query.filter(InventoryItem.quantity_available > 0)
+        
+        return query.offset(skip).limit(limit).all()
+    
+    @staticmethod
+    def get_featured(db: Session, limit: int = 10) -> List[InventoryItem]:
+        """Get featured products for customer browsing."""
+        return (
+            db.query(InventoryItem)
+            .options(
+                joinedload(InventoryItem.product).joinedload(Product.category),
+                joinedload(InventoryItem.product).joinedload(Product.brand)
+            )
+            .filter(
+                and_(
+                    InventoryItem.is_active == True,
+                    InventoryItem.quantity_available > 0
+                )
+            )
+            .order_by(InventoryItem.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+    
+    @staticmethod
+    def search_customer_facing(
+        db: Session,
+        search_query: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[InventoryItem]:
+        """Search inventory items for customers."""
+        return (
+            db.query(InventoryItem)
+            .options(
+                joinedload(InventoryItem.product).joinedload(Product.category),
+                joinedload(InventoryItem.product).joinedload(Product.brand)
+            )
+            .filter(
+                and_(
+                    InventoryItem.is_active == True,
+                    InventoryItem.quantity_available > 0,
+                    (
+                        InventoryItem.name.contains(search_query) |
+                        InventoryItem.description.contains(search_query) |
+                        InventoryItem.product.has(Product.name.contains(search_query)) |
+                        InventoryItem.product.has(Product.description.contains(search_query))
+                    )
+                )
+            )
+            .order_by(InventoryItem.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )

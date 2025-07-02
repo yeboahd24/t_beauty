@@ -357,3 +357,115 @@ class ProductService:
             "allocation_plan": allocation_plan,
             "alternative_variants": len(available_inventory) if not can_fulfill else 0
         }
+    
+    @staticmethod
+    def get_all_customer_facing(
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        category_id: Optional[int] = None,
+        brand_id: Optional[int] = None,
+        search: Optional[str] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
+        in_stock_only: bool = True
+    ) -> List[Product]:
+        """Get products for customer browsing."""
+        query = (
+            db.query(Product)
+            .options(
+                joinedload(Product.category),
+                joinedload(Product.brand),
+                joinedload(Product.inventory_items)
+            )
+            .filter(
+                and_(
+                    Product.is_active == True,
+                    Product.is_discontinued == False
+                )
+            )
+            .order_by(Product.created_at.desc())
+        )
+        
+        # Apply filters
+        if category_id:
+            query = query.filter(Product.category_id == category_id)
+        
+        if brand_id:
+            query = query.filter(Product.brand_id == brand_id)
+        
+        if search:
+            query = query.filter(
+                Product.name.contains(search) |
+                Product.description.contains(search)
+            )
+        
+        if min_price is not None:
+            query = query.filter(Product.base_price >= min_price)
+        
+        if max_price is not None:
+            query = query.filter(Product.base_price <= max_price)
+        
+        products = query.offset(skip).limit(limit).all()
+        
+        # Filter by stock if requested
+        if in_stock_only:
+            products = [p for p in products if p.is_in_stock]
+        
+        return products
+    
+    @staticmethod
+    def get_featured(db: Session, limit: int = 10) -> List[Product]:
+        """Get featured products for customer browsing."""
+        return (
+            db.query(Product)
+            .options(
+                joinedload(Product.category),
+                joinedload(Product.brand),
+                joinedload(Product.inventory_items)
+            )
+            .filter(
+                and_(
+                    Product.is_active == True,
+                    Product.is_discontinued == False,
+                    Product.is_featured == True
+                )
+            )
+            .order_by(Product.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+    
+    @staticmethod
+    def search_customer_facing(
+        db: Session,
+        search_query: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Product]:
+        """Search products for customers."""
+        products = (
+            db.query(Product)
+            .options(
+                joinedload(Product.category),
+                joinedload(Product.brand),
+                joinedload(Product.inventory_items)
+            )
+            .filter(
+                and_(
+                    Product.is_active == True,
+                    Product.is_discontinued == False,
+                    (
+                        Product.name.contains(search_query) |
+                        Product.description.contains(search_query)
+                    )
+                )
+            )
+            .order_by(Product.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        
+        # Filter to only products with stock
+        return [p for p in products if p.is_in_stock]

@@ -97,10 +97,15 @@ class OrderCreate(OrderBase):
 
 class CustomerOrderItemCreate(BaseModel):
     """Customer order item creation schema."""
-    inventory_item_id: int  # Customer orders from INVENTORY
+    product_id: int  # Customer orders PRODUCTS
     quantity: int = Field(..., gt=0, description="Quantity must be greater than 0")
-    unit_price: Optional[float] = None  # If not provided, use inventory selling_price
+    unit_price: Optional[float] = None  # If not provided, use product base_price
     notes: Optional[str] = None
+    
+    # Customer preferences for fulfillment
+    requested_color: Optional[str] = None
+    requested_shade: Optional[str] = None
+    requested_size: Optional[str] = None
 
 
 class CustomerOrderCreate(BaseModel):

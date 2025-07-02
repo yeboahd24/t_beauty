@@ -9,6 +9,7 @@ from app.models.customer import Customer
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus
 from app.models.invoice import Invoice, InvoiceItem, Payment, InvoiceStatus, PaymentMethod
+from app.models.cart import CartItem
 
 __all__ = [
     "User",
@@ -26,5 +27,6 @@ __all__ = [
     "InvoiceItem",
     "Payment",
     "InvoiceStatus",
-    "PaymentMethod"
+    "PaymentMethod",
+    "CartItem"
 ]

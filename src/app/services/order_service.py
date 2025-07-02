@@ -329,39 +329,56 @@ class OrderService:
     
     @staticmethod
     def _create_customer_order_item(db: Session, order_id: int, item_data: CustomerOrderItemCreate, owner_id: int) -> OrderItem:
-        """Create an order item from customer order data using inventory_item_id."""
-        # Get inventory item
-        inventory_item = db.query(InventoryItem).filter(
-            InventoryItem.id == item_data.inventory_item_id
-        ).first()
+        """Create an order item from customer order data using product_id."""
+        from app.models.product import Product
         
-        if not inventory_item:
-            raise ValueError(f"Inventory item with ID {item_data.inventory_item_id} not found")
+        # Get product (for customer orders, don't filter by owner since customers see all active products)
+        product = (
+            db.query(Product)
+            .options(
+                joinedload(Product.brand),
+                joinedload(Product.category),
+                joinedload(Product.inventory_items)
+            )
+            .filter(Product.id == item_data.product_id)
+            .first()
+        )
+        if not product:
+            raise ValueError(f"Product with ID {item_data.product_id} not found")
         
-        # Check stock availability
-        if inventory_item.current_stock < item_data.quantity:
+        # Check if product is available and in stock
+        if not product.is_active or product.is_discontinued:
+            raise ValueError(f"Product {product.name} is not available")
+        
+        if not product.is_in_stock:
+            raise ValueError(f"Product {product.name} is out of stock")
+        
+        if product.available_stock < item_data.quantity:
             raise ValueError(
-                f"Insufficient stock for {inventory_item.name}. "
-                f"Available: {inventory_item.current_stock}, Requested: {item_data.quantity}"
+                f"Insufficient stock for {product.name}. "
+                f"Available: {product.available_stock}, Requested: {item_data.quantity}"
             )
         
-        # Calculate pricing (use inventory selling price if not specified)
-        unit_price = item_data.unit_price or inventory_item.selling_price
+        # Calculate pricing (use product base price if not specified)
+        unit_price = item_data.unit_price or product.base_price
         total_price = unit_price * item_data.quantity
         
-        # Create order item with inventory item reference
+        # Create order item with product reference (inventory allocation happens later)
         order_item = OrderItem(
             order_id=order_id,
-            product_id=inventory_item.product_id,  # Link to product through inventory
-            inventory_item_id=inventory_item.id,
+            product_id=item_data.product_id,
+            inventory_item_id=None,  # Will be set during allocation
             quantity=item_data.quantity,
             unit_price=unit_price,
             discount_amount=0.0,
             total_price=total_price,
-            product_name=inventory_item.name,
-            product_sku=inventory_item.sku,
-            product_description=inventory_item.description,
+            product_name=product.name,
+            product_sku=product.sku,
+            product_description=product.description,
             notes=item_data.notes,
+            requested_color=item_data.requested_color,
+            requested_shade=item_data.requested_shade,
+            requested_size=item_data.requested_size,
             allocated_quantity=0,
             fulfilled_quantity=0
         )
