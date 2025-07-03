@@ -10,13 +10,13 @@ passlib[bcrypt]==1.7.4
 # Database
 sqlalchemy==2.0.23
 alembic==1.12.1
-# psycopg2-binary==2.9.9
-psycopg[binary]
+psycopg2-binary==2.9.9
+#psycopg[binary]
 
 # Configuration & Validation
 python-dotenv==1.0.0
-# pydantic[email]==2.5.0
-pydantic[email]==2.6.4
+pydantic[email]==2.5.0
+# pydantic[email]==2.6.4
 pydantic-settings==2.0.3
 
 # File handling
