@@ -474,12 +474,26 @@ class OrderService:
         tracking_number: str = None,
         courier_service: str = None
     ) -> Order:
-        """Update order status with automatic timestamp updates."""
+        """Update order status with automatic timestamp updates and validation."""
         order = OrderService.get_by_id(db, order_id, owner_id)
         if not order:
             raise ValueError("Order not found")
         
-        # Update status-specific timestamps
+        # Validate status transitions for paid to shipping to delivered workflow
+        if new_status == OrderStatus.SHIPPED:
+            # Can ship if order is confirmed/processing/packed and payment is made
+            if order.status not in [OrderStatus.CONFIRMED, OrderStatus.PROCESSING, OrderStatus.PACKED]:
+                raise ValueError(f"Cannot ship order with status: {order.status}. Order must be confirmed, processing, or packed.")
+            
+            if order.payment_status not in [PaymentStatus.PAID, PaymentStatus.PARTIAL]:
+                raise ValueError(f"Cannot ship order with payment status: {order.payment_status}. Payment must be completed or partial.")
+        
+        elif new_status == OrderStatus.DELIVERED:
+            # Can only deliver if order is shipped
+            if order.status != OrderStatus.SHIPPED:
+                raise ValueError(f"Cannot deliver order with status: {order.status}. Order must be shipped first.")
+        
+        # Update status-specific timestamps and fields
         if new_status == OrderStatus.SHIPPED and order.status != OrderStatus.SHIPPED:
             order.shipped_at = datetime.utcnow()
             if tracking_number:

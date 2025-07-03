@@ -201,6 +201,8 @@ class OrderSummary(BaseModel):
 class OrderStatusUpdate(BaseModel):
     """Order status update schema."""
     status: OrderStatus
+    tracking_number: Optional[str] = None
+    courier_service: Optional[str] = None
     notes: Optional[str] = None
 
 
