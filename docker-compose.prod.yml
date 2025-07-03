@@ -5,6 +5,7 @@ version: '3.8'
 
 services:
   tbeauty:
+    image: ${DOCKER_REGISTRY:-localhost}/tbeauty:${TAG:-latest}
     environment:
       # Override with production values
       SECRET_KEY: ${SECRET_KEY}
@@ -16,6 +17,8 @@ services:
     ports: []
     # Add resource limits
     deploy:
+      mode: replicated
+      replicas: ${APP_REPLICAS:-1}
       resources:
         limits:
           cpus: '1.0'
@@ -23,8 +26,19 @@ services:
         reservations:
           cpus: '0.5'
           memory: 256M
+    # Add logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Use production-specific networks
+    networks:
+      - tbeauty-network
+      - traefik-public
 
   postgres:
+    image: postgres:15-alpine
     environment:
       # Use production database credentials
       POSTGRES_DB: ${POSTGRES_DB:-tbeauty}
@@ -41,8 +55,79 @@ services:
         reservations:
           cpus: '0.25'
           memory: 512M
+    # Add logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Use named volumes for persistence
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
 
   # Remove development services in production
   adminer:
     profiles:
       - never  # This ensures adminer never starts in production
+      
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    # Add resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    # Add logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - cache
+      
+  # Optional Traefik reverse proxy for production
+  traefik:
+    image: traefik:v2.10
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "letsencrypt:/letsencrypt"
+    networks:
+      - traefik-public
+    profiles:
+      - proxy
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      
+# Define additional volumes for production
+volumes:
+  letsencrypt:
+    driver: local
+
+# Define additional networks for production
+networks:
+  traefik-public:
+    external: ${TRAEFIK_PUBLIC_NETWORK_EXISTS:-false}
+    name: ${TRAEFIK_PUBLIC_NETWORK_NAME:-traefik-public}
