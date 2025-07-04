@@ -74,3 +74,13 @@ class UserService:
         db.commit()
         db.refresh(user)
         return user
+    
+    @staticmethod
+    def get_total_users_count(db: Session) -> int:
+        """Get total number of users in the system."""
+        return db.query(User).count()
+    
+    @staticmethod
+    def get_active_users_count(db: Session) -> int:
+        """Get total number of active users in the system."""
+        return db.query(User).filter(User.is_active == True).count()

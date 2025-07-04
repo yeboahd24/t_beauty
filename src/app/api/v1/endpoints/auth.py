@@ -118,3 +118,19 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 async def verify_token(current_user: User = Depends(get_current_active_user)):
     """Verify if the current token is valid."""
     return {"valid": True, "user_id": current_user.id, "email": current_user.email}
+
+
+@router.get("/users/count")
+async def get_users_count(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get total number of users in the system."""
+    total_users = UserService.get_total_users_count(db)
+    active_users = UserService.get_active_users_count(db)
+    
+    return {
+        "total_users": total_users,
+        "active_users": active_users,
+        "inactive_users": total_users - active_users
+    }
