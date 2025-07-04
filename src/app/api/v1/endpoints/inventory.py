@@ -230,3 +230,19 @@ async def get_stock_movements(
         )
     
     return item.stock_movements
+
+
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_inventory_item(
+    item_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Delete an inventory item by ID."""
+    success = InventoryService.delete(db=db, item_id=item_id, owner_id=current_user.id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Inventory item not found"
+        )
+    return None

@@ -186,6 +186,37 @@ class InventoryService:
         return db_item
     
     @staticmethod
+    def delete(db: Session, item_id: int, owner_id: int = None) -> bool:
+        """Delete an inventory item and its related stock movements."""
+        db_item = InventoryService.get_by_id(db, item_id, owner_id)
+        if not db_item:
+            return False
+        
+        # Check if item has any pending orders or is referenced elsewhere
+        # This is a safety check to prevent deletion of items that are still in use
+        from app.models.order import OrderItem
+        pending_orders = db.query(OrderItem).filter(
+            OrderItem.inventory_item_id == item_id
+        ).first()
+        
+        if pending_orders:
+            # Instead of hard delete, mark as inactive and discontinued
+            db_item.is_active = False
+            db_item.is_discontinued = True
+            db.commit()
+            return True
+        
+        # Delete related stock movements first (due to foreign key constraints)
+        db.query(StockMovement).filter(
+            StockMovement.inventory_item_id == item_id
+        ).delete()
+        
+        # Delete the inventory item
+        db.delete(db_item)
+        db.commit()
+        return True
+    
+    @staticmethod
     def adjust_stock(
         db: Session,
         item_id: int,

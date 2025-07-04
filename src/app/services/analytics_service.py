@@ -403,8 +403,8 @@ class AnalyticsService:
         """Get total revenue for a specific period."""
         result = self.db.query(func.sum(Order.total_amount)).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).scalar()
@@ -414,8 +414,8 @@ class AnalyticsService:
         """Get total orders count for a specific period."""
         return self.db.query(Order).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).count()
@@ -424,8 +424,8 @@ class AnalyticsService:
         """Calculate average order value for a period."""
         result = self.db.query(func.avg(Order.total_amount)).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).scalar()
@@ -444,8 +444,8 @@ class AnalyticsService:
         """Get count of active customers (who placed orders) in a period."""
         return self.db.query(Customer.id).join(Order).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).distinct().count()
@@ -493,15 +493,15 @@ class AnalyticsService:
         # You might want to include more sophisticated profit calculations
         orders = self.db.query(Order).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).all()
         
         total_profit = 0.0
         for order in orders:
-            for item in order.items:
+            for item in order.order_items:
                 if item.inventory_item:
                     cost = float(item.inventory_item.cost_price * item.quantity)
                     revenue = float(item.unit_price * item.quantity)
@@ -512,7 +512,7 @@ class AnalyticsService:
     def _get_outstanding_invoices_amount(self) -> float:
         """Get total amount of outstanding invoices."""
         result = self.db.query(func.sum(Invoice.total_amount)).filter(
-            Invoice.status.in_(["pending", "overdue"])
+            Invoice.status.in_(["sent", "viewed", "overdue"])
         ).scalar()
         return float(result or 0)
     
@@ -552,20 +552,20 @@ class AnalyticsService:
     def _get_daily_sales(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
         """Get daily sales data for a period."""
         results = self.db.query(
-            Order.order_date,
+            Order.created_at,
             func.count(Order.id).label('order_count'),
             func.sum(Order.total_amount).label('revenue')
         ).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
-        ).group_by(Order.order_date).order_by(Order.order_date).all()
+        ).group_by(Order.created_at).order_by(Order.created_at).all()
         
         return [
             {
-                "date": result.order_date.isoformat(),
+                "date": result.created_at.isoformat(),
                 "orders": result.order_count,
                 "revenue": float(result.revenue or 0)
             }
@@ -599,10 +599,16 @@ class AnalyticsService:
             Product.name,
             func.sum(OrderItem.quantity).label('total_sold'),
             func.sum(OrderItem.quantity * OrderItem.unit_price).label('total_revenue')
-        ).join(InventoryItem).join(OrderItem).join(Order).filter(
+        ).select_from(Product).join(
+            InventoryItem, InventoryItem.product_id == Product.id
+        ).join(
+            OrderItem, OrderItem.inventory_item_id == InventoryItem.id
+        ).join(
+            Order, Order.id == OrderItem.order_id
+        ).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(Product.id, Product.name).order_by(
@@ -626,8 +632,8 @@ class AnalyticsService:
             func.sum(Order.total_amount).label('revenue')
         ).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(Order.order_source).all()
@@ -643,10 +649,14 @@ class AnalyticsService:
         results = self.db.query(
             Payment.payment_method,
             func.sum(Payment.amount).label('amount')
-        ).join(Invoice).join(Order).filter(
+        ).select_from(Payment).join(
+            Invoice, Invoice.id == Payment.invoice_id
+        ).join(
+            Order, Order.id == Invoice.order_id
+        ).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(Payment.payment_method).all()
@@ -677,17 +687,17 @@ class AnalyticsService:
         
         # At risk customers (no orders in last 90 days but had orders before)
         at_risk_customers = self.db.query(Customer.id).join(Order).filter(
-            Order.order_date < three_months_ago
+            Order.created_at < three_months_ago
         ).group_by(Customer.id).having(
-            func.max(Order.order_date) < three_months_ago
+            func.max(Order.created_at) < three_months_ago
         ).count()
         
         # Churned customers (no orders in last 180 days)
         six_months_ago = today - timedelta(days=180)
         churned_customers = self.db.query(Customer.id).join(Order).filter(
-            Order.order_date < six_months_ago
+            Order.created_at < six_months_ago
         ).group_by(Customer.id).having(
-            func.max(Order.order_date) < six_months_ago
+            func.max(Order.created_at) < six_months_ago
         ).count()
         
         # Regular customers (everyone else)
@@ -712,8 +722,8 @@ class AnalyticsService:
             func.count(Order.id).label('total_orders'),
             func.sum(Order.total_amount).label('total_spent'),
             func.avg(Order.total_amount).label('avg_order_value'),
-            func.min(Order.order_date).label('first_order'),
-            func.max(Order.order_date).label('last_order')
+            func.min(Order.created_at).label('first_order'),
+            func.max(Order.created_at).label('last_order')
         ).join(Order).group_by(
             Customer.id, Customer.first_name, Customer.last_name, Customer.email
         ).order_by(desc('total_spent')).limit(50).all()
@@ -785,7 +795,7 @@ class AnalyticsService:
         # Customers who made orders in last 90 days
         three_months_ago = date.today() - timedelta(days=90)
         active_customers = self.db.query(Customer.id).join(Order).filter(
-            Order.order_date >= three_months_ago
+            Order.created_at >= three_months_ago
         ).distinct().count()
         
         # Calculate metrics
@@ -839,7 +849,7 @@ class AnalyticsService:
             Customer.first_name,
             Customer.last_name,
             Customer.email,
-            func.max(Order.order_date).label('last_order_date'),
+            func.max(Order.created_at).label('last_order_date'),
             func.count(Order.id).label('total_orders'),
             func.sum(Order.total_amount).label('total_spent')
         ).join(Order).filter(
@@ -848,8 +858,8 @@ class AnalyticsService:
             Customer.id, Customer.first_name, Customer.last_name, Customer.email
         ).having(
             and_(
-                func.max(Order.order_date) < sixty_days_ago,
-                func.max(Order.order_date) >= one_twenty_days_ago
+                func.max(Order.created_at) < sixty_days_ago,
+                func.max(Order.created_at) >= one_twenty_days_ago
             )
         ).order_by(desc('total_spent')).limit(limit).all()
         
@@ -922,7 +932,7 @@ class AnalyticsService:
             func.coalesce(func.sum(OrderItem.quantity), 0).label('sold_last_90_days')
         ).join(InventoryItem).outerjoin(OrderItem).outerjoin(Order).filter(
             or_(
-                Order.order_date >= ninety_days_ago,
+                Order.created_at >= ninety_days_ago,
                 Order.id.is_(None)
             )
         ).group_by(
@@ -959,7 +969,7 @@ class AnalyticsService:
             func.sum(OrderItem.quantity).label('sold_last_30_days')
         ).join(InventoryItem).join(OrderItem).join(Order).filter(
             and_(
-                Order.order_date >= thirty_days_ago,
+                Order.created_at >= thirty_days_ago,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(
@@ -1076,7 +1086,7 @@ class AnalyticsService:
             func.coalesce(func.sum(OrderItem.quantity), 0).label('sold_last_30_days')
         ).join(InventoryItem).outerjoin(OrderItem).outerjoin(Order).filter(
             or_(
-                Order.order_date >= thirty_days_ago,
+                Order.created_at >= thirty_days_ago,
                 Order.id.is_(None)
             )
         ).group_by(
@@ -1121,17 +1131,17 @@ class AnalyticsService:
         start_date = end_date - timedelta(days=365)
         
         results = self.db.query(
-            func.date_trunc('month', Order.order_date).label('month'),
+            func.date_trunc('month', Order.created_at).label('month'),
             func.sum(Order.total_amount).label('revenue'),
             func.count(Order.id).label('order_count'),
             func.avg(Order.total_amount).label('avg_order_value')
         ).filter(
             and_(
-                Order.order_date >= start_date,
+                Order.created_at >= start_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(
-            func.date_trunc('month', Order.order_date)
+            func.date_trunc('month', Order.created_at)
         ).order_by('month').all()
         
         trends = []
@@ -1291,7 +1301,7 @@ class AnalyticsService:
         ).filter(
             and_(
                 Invoice.due_date < today,
-                Invoice.status.in_(["pending", "overdue"])
+                Invoice.status.in_(["sent", "viewed", "overdue"])
             )
         ).first()
         
@@ -1402,7 +1412,13 @@ class AnalyticsService:
             func.sum(OrderItem.quantity * OrderItem.unit_price).label('total_revenue'),
             func.avg(OrderItem.unit_price).label('avg_price'),
             func.count(func.distinct(Order.customer_id)).label('unique_customers')
-        ).join(InventoryItem).join(OrderItem).join(Order).filter(
+        ).select_from(Product).join(
+            InventoryItem, InventoryItem.product_id == Product.id
+        ).join(
+            OrderItem, OrderItem.inventory_item_id == InventoryItem.id
+        ).join(
+            Order, Order.id == OrderItem.order_id
+        ).filter(
             Order.status.in_(["confirmed", "shipped", "delivered"])
         ).group_by(
             Product.id, Product.name
@@ -1435,9 +1451,15 @@ class AnalyticsService:
             InventoryItem.current_stock,
             func.coalesce(func.sum(OrderItem.quantity), 0).label('total_sold'),
             func.coalesce(func.sum(OrderItem.quantity * OrderItem.unit_price), 0).label('total_revenue')
-        ).join(InventoryItem).outerjoin(OrderItem).outerjoin(Order).filter(
+        ).select_from(Product).join(
+            InventoryItem, InventoryItem.product_id == Product.id
+        ).outerjoin(
+            OrderItem, OrderItem.inventory_item_id == InventoryItem.id
+        ).outerjoin(
+            Order, Order.id == OrderItem.order_id
+        ).filter(
             or_(
-                Order.order_date >= ninety_days_ago,
+                Order.created_at >= ninety_days_ago,
                 Order.id.is_(None)
             )
         ).group_by(
@@ -1475,9 +1497,15 @@ class AnalyticsService:
             Product.name,
             func.sum(OrderItem.quantity).label('recent_sold'),
             func.sum(OrderItem.quantity * OrderItem.unit_price).label('recent_revenue')
-        ).join(InventoryItem).join(OrderItem).join(Order).filter(
+        ).select_from(Product).join(
+            InventoryItem, InventoryItem.product_id == Product.id
+        ).join(
+            OrderItem, OrderItem.inventory_item_id == InventoryItem.id
+        ).join(
+            Order, Order.id == OrderItem.order_id
+        ).filter(
             and_(
-                Order.order_date >= three_months_ago,
+                Order.created_at >= three_months_ago,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(Product.id, Product.name).subquery()
@@ -1487,10 +1515,16 @@ class AnalyticsService:
             Product.name,
             func.sum(OrderItem.quantity).label('previous_sold'),
             func.sum(OrderItem.quantity * OrderItem.unit_price).label('previous_revenue')
-        ).join(InventoryItem).join(OrderItem).join(Order).filter(
+        ).select_from(Product).join(
+            InventoryItem, InventoryItem.product_id == Product.id
+        ).join(
+            OrderItem, OrderItem.inventory_item_id == InventoryItem.id
+        ).join(
+            Order, Order.id == OrderItem.order_id
+        ).filter(
             and_(
-                Order.order_date >= six_months_ago,
-                Order.order_date < three_months_ago,
+                Order.created_at >= six_months_ago,
+                Order.created_at < three_months_ago,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(Product.id, Product.name).subquery()
@@ -1545,9 +1579,13 @@ class AnalyticsService:
             func.sum(OrderItem.quantity).label('total_sold'),
             func.sum(OrderItem.quantity * OrderItem.unit_price).label('total_revenue'),
             func.avg(OrderItem.unit_price).label('avg_price')
-        ).join(Product, Product.category_id == Category.id).join(
+        ).select_from(Category).join(
+            Product, Product.category_id == Category.id
+        ).join(
             InventoryItem, InventoryItem.product_id == Product.id
-        ).join(OrderItem, OrderItem.inventory_item_id == InventoryItem.id).join(
+        ).join(
+            OrderItem, OrderItem.inventory_item_id == InventoryItem.id
+        ).join(
             Order, Order.id == OrderItem.order_id
         ).filter(
             Order.status.in_(["confirmed", "shipped", "delivered"])
@@ -1581,9 +1619,13 @@ class AnalyticsService:
             func.sum(OrderItem.quantity).label('total_sold'),
             func.sum(OrderItem.quantity * OrderItem.unit_price).label('total_revenue'),
             func.avg(OrderItem.unit_price).label('avg_price')
-        ).join(Product, Product.brand_id == Brand.id).join(
+        ).select_from(Brand).join(
+            Product, Product.brand_id == Brand.id
+        ).join(
             InventoryItem, InventoryItem.product_id == Product.id
-        ).join(OrderItem, OrderItem.inventory_item_id == InventoryItem.id).join(
+        ).join(
+            OrderItem, OrderItem.inventory_item_id == InventoryItem.id
+        ).join(
             Order, Order.id == OrderItem.order_id
         ).filter(
             Order.status.in_(["confirmed", "shipped", "delivered"])
@@ -1613,17 +1655,17 @@ class AnalyticsService:
         one_year_ago = today - timedelta(days=365)
         
         monthly_patterns = self.db.query(
-            func.extract('month', Order.order_date).label('month'),
+            func.extract('month', Order.created_at).label('month'),
             func.count(Order.id).label('order_count'),
             func.sum(Order.total_amount).label('revenue'),
             func.avg(Order.total_amount).label('avg_order_value')
         ).filter(
             and_(
-                Order.order_date >= one_year_ago,
+                Order.created_at >= one_year_ago,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(
-            func.extract('month', Order.order_date)
+            func.extract('month', Order.created_at)
         ).order_by('month').all()
         
         # Calculate seasonal patterns
@@ -1658,8 +1700,8 @@ class AnalyticsService:
         """Get unique customers count for a period."""
         return self.db.query(Customer.id).join(Order).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).distinct().count()
@@ -1675,8 +1717,8 @@ class AnalyticsService:
             func.count(func.distinct(Order.customer_id)).label('unique_customers')
         ).join(InventoryItem).join(OrderItem).join(Order).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(
@@ -1709,8 +1751,8 @@ class AnalyticsService:
             func.avg(Order.total_amount).label('avg_order_value')
         ).join(Order).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).group_by(
@@ -1799,8 +1841,8 @@ class AnalyticsService:
             func.avg(Order.total_amount)
         ).join(Customer).filter(
             and_(
-                Order.order_date >= start_date,
-                Order.order_date <= end_date,
+                Order.created_at >= start_date,
+                Order.created_at <= end_date,
                 Order.status.in_(["confirmed", "shipped", "delivered"])
             )
         ).scalar()
