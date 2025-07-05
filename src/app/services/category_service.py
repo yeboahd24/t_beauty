@@ -4,8 +4,8 @@ Category service for business logic.
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app.models.category import Category
-from app.schemas.category import CategoryCreate, CategoryUpdate
+from src.app.models.category import Category
+from src.app.schemas.category import CategoryCreate, CategoryUpdate
 
 
 class CategoryService:

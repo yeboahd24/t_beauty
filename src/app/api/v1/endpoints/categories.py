@@ -5,11 +5,11 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_active_user
-from app.db.session import get_db
-from app.models.user import User
-from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse, CategoryListResponse, CategorySummary
-from app.services.category_service import CategoryService
+from src.app.core.security import get_current_active_user
+from src.app.db.session import get_db
+from src.app.models.user import User
+from src.app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse, CategoryListResponse, CategorySummary
+from src.app.services.category_service import CategoryService
 
 router = APIRouter()
 

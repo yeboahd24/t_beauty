@@ -3,9 +3,9 @@ User service for business logic.
 """
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
-from app.models.user import User
-from app.schemas.user import UserCreate
-from app.core.security import get_password_hash, verify_password
+from src.app.models.user import User
+from src.app.schemas.user import UserCreate
+from src.app.core.security import get_password_hash, verify_password
 
 
 class UserService:

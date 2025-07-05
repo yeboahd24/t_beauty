@@ -6,11 +6,11 @@ from datetime import datetime, date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.core.security import get_current_active_user
-from app.models.user import User
-from app.services.analytics_service import AnalyticsService
-from app.schemas.analytics import (
+from src.app.db.session import get_db
+from src.app.core.security import get_current_active_user
+from src.app.models.user import User
+from src.app.services.analytics_service import AnalyticsService
+from src.app.schemas.analytics import (
     DashboardOverview, SalesTrends, CustomerInsights, InventoryInsights,
     FinancialInsights, ProductPerformance, BusinessReportCreate,
     BusinessReportResponse, SalesReport, InventoryReport, CustomerReport,
@@ -269,7 +269,7 @@ def get_dashboard_metrics(
     Categories: sales, inventory, customers, financial
     Period types: daily, weekly, monthly, ytd
     """
-    from app.models.analytics import DashboardMetric
+    from src.app.models.analytics import DashboardMetric
     
     query = db.query(DashboardMetric)
     
@@ -296,7 +296,7 @@ def get_customer_analytics(
     
     Segments: new, regular, vip, at_risk, churned
     """
-    from app.models.analytics import CustomerAnalytics
+    from src.app.models.analytics import CustomerAnalytics
     
     query = db.query(CustomerAnalytics)
     
@@ -321,7 +321,7 @@ def get_product_analytics(
     """
     Get product analytics data with optional filtering.
     """
-    from app.models.analytics import ProductAnalytics
+    from src.app.models.analytics import ProductAnalytics
     
     end_date = date.today()
     start_date = end_date - timedelta(days=period_days)
@@ -351,7 +351,7 @@ def get_sales_analytics(
     
     Period types: daily, weekly, monthly
     """
-    from app.models.analytics import SalesAnalytics
+    from src.app.models.analytics import SalesAnalytics
     
     end_date = date.today()
     start_date = end_date - timedelta(days=period_days)
@@ -379,7 +379,7 @@ def get_inventory_analytics(
     """
     Get inventory analytics data with optional filtering.
     """
-    from app.models.analytics import InventoryAnalytics
+    from src.app.models.analytics import InventoryAnalytics
     
     end_date = date.today()
     start_date = end_date - timedelta(days=period_days)
@@ -410,7 +410,7 @@ def list_business_reports(
     
     Report types: sales, inventory, customer, financial, product, payment
     """
-    from app.models.analytics import BusinessReport
+    from src.app.models.analytics import BusinessReport
     
     query = db.query(BusinessReport)
     
@@ -435,7 +435,7 @@ def get_business_report(
     
     Returns the full report data including JSON content.
     """
-    from app.models.analytics import BusinessReport
+    from src.app.models.analytics import BusinessReport
     
     report = db.query(BusinessReport).filter(BusinessReport.id == report_id).first()
     if not report:
@@ -473,7 +473,7 @@ def delete_business_report(
     
     Only the report creator or admin can delete reports.
     """
-    from app.models.analytics import BusinessReport
+    from src.app.models.analytics import BusinessReport
     
     report = db.query(BusinessReport).filter(BusinessReport.id == report_id).first()
     if not report:
@@ -502,7 +502,7 @@ def analytics_health_check(
     """
     try:
         # Test database connectivity
-        from app.models.analytics import DashboardMetric
+        from src.app.models.analytics import DashboardMetric
         metric_count = db.query(DashboardMetric).count()
         
         # Test analytics service

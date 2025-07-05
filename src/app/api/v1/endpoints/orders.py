@@ -5,16 +5,16 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.schemas.order import (
+from src.app.db.session import get_db
+from src.app.schemas.order import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse, OrderSummary,
     OrderStatusUpdate, PaymentUpdate, OrderStats, OrderConfirmation,
     LowStockImpact
 )
-from app.services.order_service import OrderService
-from app.models.user import User
-from app.models.order import OrderStatus, PaymentStatus
-from app.core.security import get_current_active_user
+from src.app.services.order_service import OrderService
+from src.app.models.user import User
+from src.app.models.order import OrderStatus, PaymentStatus
+from src.app.core.security import get_current_active_user
 
 router = APIRouter()
 

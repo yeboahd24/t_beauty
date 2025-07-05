@@ -4,8 +4,8 @@ Brand service for business logic.
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app.models.brand import Brand
-from app.schemas.brand import BrandCreate, BrandUpdate
+from src.app.models.brand import Brand
+from src.app.schemas.brand import BrandCreate, BrandUpdate
 
 
 class BrandService:

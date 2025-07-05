@@ -4,7 +4,7 @@ Category model.
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.db.base import Base
+from src.app.db.base import Base
 
 
 class Category(Base):

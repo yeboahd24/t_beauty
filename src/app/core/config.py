@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Database Settings
     DATABASE_URL: str = "sqlite:///./app.db"
     
+    # Redis Settings (for Celery)
+    REDIS_URL: str = "redis://localhost:6379/0"
+    
     # CORS Settings
     BACKEND_CORS_ORIGINS: list = ["*"]
     

@@ -4,7 +4,7 @@ Inventory model for T-Beauty stock management.
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.db.base import Base
+from src.app.db.base import Base
 
 
 class InventoryItem(Base):

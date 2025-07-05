@@ -5,11 +5,11 @@ from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 
-from app.models.cart import CartItem
-from app.models.customer import Customer
-from app.models.product import Product
-from app.schemas.cart import CartItemCreate, CartItemUpdate, AddToCartRequest, CartToOrderRequest
-from app.schemas.order import CustomerOrderCreate, CustomerOrderItemCreate
+from src.app.models.cart import CartItem
+from src.app.models.customer import Customer
+from src.app.models.product import Product
+from src.app.schemas.cart import CartItemCreate, CartItemUpdate, AddToCartRequest, CartToOrderRequest
+from src.app.schemas.order import CustomerOrderCreate, CustomerOrderItemCreate
 
 
 class CartService:
@@ -177,7 +177,7 @@ class CartService:
         owner_id: int = 1  # Default business owner
     ) -> dict:
         """Convert cart items to an order."""
-        from app.services.order_service import OrderService
+        from src.app.services.order_service import OrderService
         
         cart_items = CartService.get_cart_items(db, customer_id)
         
@@ -236,7 +236,7 @@ class CartService:
         db.commit()
         
         # Convert order to Pydantic model for serialization
-        from app.schemas.order import OrderResponse
+        from src.app.schemas.order import OrderResponse
         
         return {
             "order": OrderResponse.model_validate(order),

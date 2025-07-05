@@ -5,15 +5,15 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.schemas.product import (
+from src.app.db.session import get_db
+from src.app.schemas.product import (
     ProductCreate, ProductUpdate, ProductResponse, ProductListResponse, 
     ProductImageUpdate, ProductFormData, ProductUpdateFormData
 )
-from app.services.product_service import ProductService
-from app.models.user import User
-from app.core.security import get_current_active_user
-from app.utils.file_upload import file_upload_service
+from src.app.services.product_service import ProductService
+from src.app.models.user import User
+from src.app.core.security import get_current_active_user
+from src.app.utils.file_upload import file_upload_service
 
 router = APIRouter()
 

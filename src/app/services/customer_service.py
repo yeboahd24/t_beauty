@@ -4,9 +4,9 @@ Customer service for T-Beauty business logic.
 from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from app.models.customer import Customer
-from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerRegister
-from app.core.security import get_password_hash, verify_password
+from src.app.models.customer import Customer
+from src.app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerRegister
+from src.app.core.security import get_password_hash, verify_password
 
 
 class CustomerService:
@@ -183,8 +183,8 @@ class CustomerService:
     @staticmethod
     def can_hard_delete(db: Session, customer_id: int) -> dict:
         """Check if customer can be safely hard deleted."""
-        from app.models.order import Order
-        from app.models.invoice import Invoice
+        from src.app.models.order import Order
+        from src.app.models.invoice import Invoice
         
         db_customer = CustomerService.get_by_id(db, customer_id)
         if not db_customer:
@@ -239,8 +239,8 @@ class CustomerService:
         try:
             if force:
                 # Force delete - remove all related records first
-                from app.models.order import Order
-                from app.models.invoice import Invoice
+                from src.app.models.order import Order
+                from src.app.models.invoice import Invoice
                 
                 # Delete related invoices
                 db.query(Invoice).filter(Invoice.customer_id == customer_id).delete()
@@ -299,3 +299,109 @@ class CustomerService:
             "vip_customers": vip_customers,
             "inactive_customers": total_customers - active_customers
         }
+    
+    @staticmethod
+    def bulk_import_from_csv(db: Session, csv_file_path: str) -> dict:
+        """Bulk import customers from CSV file."""
+        import csv
+        import os
+        
+        if not os.path.exists(csv_file_path):
+            return {
+                "success": False,
+                "message": f"CSV file not found: {csv_file_path}",
+                "imported_count": 0,
+                "errors": []
+            }
+        
+        imported_count = 0
+        errors = []
+        skipped_count = 0
+        
+        try:
+            with open(csv_file_path, 'r', encoding='utf-8') as file:
+                csv_reader = csv.DictReader(file)
+                
+                for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 because row 1 is header
+                    try:
+                        # Extract and clean data from CSV
+                        first_name = row.get('contact_first_name', '').strip()
+                        last_name = row.get('contact_last_name', '').strip()
+                        email = row.get('email', '').strip().lower() if row.get('email') else None
+                        phone = row.get('phone', '').strip() if row.get('phone') else None
+                        
+                        # Skip rows with missing essential data
+                        if not first_name and not last_name:
+                            skipped_count += 1
+                            continue
+                        
+                        # Handle cases where first_name might be empty but last_name has full name
+                        if not first_name and last_name:
+                            name_parts = last_name.split(' ', 1)
+                            first_name = name_parts[0]
+                            last_name = name_parts[1] if len(name_parts) > 1 else ''
+                        
+                        # Skip if email already exists
+                        if email and CustomerService.get_by_email(db, email):
+                            skipped_count += 1
+                            continue
+                        
+                        # Build address from CSV fields
+                        address_parts = []
+                        if row.get('address_line_1'):
+                            address_parts.append(row.get('address_line_1').strip())
+                        if row.get('address_line_2'):
+                            address_parts.append(row.get('address_line_2').strip())
+                        
+                        address_line1 = address_parts[0] if address_parts else None
+                        address_line2 = address_parts[1] if len(address_parts) > 1 else None
+                        
+                        # Extract other fields
+                        city = row.get('city', '').strip() if row.get('city') else None
+                        state = row.get('province/state', '').strip() if row.get('province/state') else None
+                        country = row.get('country', 'Trinidad and Tobago').strip() if row.get('country') else 'Trinidad and Tobago'
+                        
+                        # Create customer data
+                        customer_data = {
+                            'first_name': first_name,
+                            'last_name': last_name,
+                            'email': email,
+                            'phone': phone,
+                            'address_line1': address_line1,
+                            'address_line2': address_line2,
+                            'city': city,
+                            'state': state,
+                            'country': country,
+                            'is_active': True,
+                            'is_vip': False,
+                            'preferred_contact_method': 'phone' if phone else 'email'
+                        }
+                        
+                        # Create customer
+                        db_customer = Customer(**customer_data)
+                        db.add(db_customer)
+                        db.commit()
+                        db.refresh(db_customer)
+                        
+                        imported_count += 1
+                        
+                    except Exception as e:
+                        errors.append(f"Row {row_num}: {str(e)}")
+                        db.rollback()
+                        continue
+            
+            return {
+                "success": True,
+                "message": f"Successfully imported {imported_count} customers",
+                "imported_count": imported_count,
+                "skipped_count": skipped_count,
+                "errors": errors
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Failed to process CSV file: {str(e)}",
+                "imported_count": imported_count,
+                "errors": errors
+            }

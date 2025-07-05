@@ -5,13 +5,13 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.core.security import create_access_token, get_current_active_customer
-from app.db.session import get_db
-from app.schemas.auth import Token
-from app.schemas.customer import CustomerRegister, CustomerLogin, CustomerResponse, CustomerUpdate
-from app.services.customer_service import CustomerService
-from app.models.customer import Customer
+from src.app.core.config import settings
+from src.app.core.security import create_access_token, get_current_active_customer
+from src.app.db.session import get_db
+from src.app.schemas.auth import Token
+from src.app.schemas.customer import CustomerRegister, CustomerLogin, CustomerResponse, CustomerUpdate
+from src.app.services.customer_service import CustomerService
+from src.app.models.customer import Customer
 
 router = APIRouter()
 

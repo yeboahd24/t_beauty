@@ -8,11 +8,11 @@ from sqlalchemy import and_, func, desc
 from datetime import datetime, timedelta
 import uuid
 
-from app.models.invoice import Invoice, InvoiceItem, InvoiceStatus, Payment
-from app.models.customer import Customer
-from app.models.order import Order
-from app.models.inventory import InventoryItem
-from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceItemCreate
+from src.app.models.invoice import Invoice, InvoiceItem, InvoiceStatus, Payment
+from src.app.models.customer import Customer
+from src.app.models.order import Order
+from src.app.models.inventory import InventoryItem
+from src.app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceItemCreate
 
 
 class InvoiceService:
@@ -235,7 +235,7 @@ class InvoiceService:
     @staticmethod
     def create_from_order(db: Session, order_id: int, owner_id: int) -> Invoice:
         """Create an invoice from an existing order."""
-        from app.services.order_service import OrderService
+        from src.app.services.order_service import OrderService
 
         # Get the order
         order = OrderService.get_by_id(db, order_id, owner_id)

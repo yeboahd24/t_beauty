@@ -2,7 +2,7 @@
 API v1 router for T-Beauty Business Management System.
 """
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, products, customers, inventory, brands, categories, orders, customer_auth, customer_orders, invoices, payments, analytics, cart, customer_products
+from src.app.api.v1.endpoints import auth, products, customers, inventory, brands, categories, orders, customer_auth, customer_orders, invoices, payments, analytics, cart, customer_products
 
 api_router = APIRouter()
 

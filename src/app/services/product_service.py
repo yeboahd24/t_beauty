@@ -4,8 +4,8 @@ Product service for business logic.
 from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
-from app.models.product import Product
-from app.schemas.product import ProductCreate, ProductUpdate
+from src.app.models.product import Product
+from src.app.schemas.product import ProductCreate, ProductUpdate
 
 
 class ProductService:
@@ -77,7 +77,7 @@ class ProductService:
         
         if in_stock_only:
             # Only products that have inventory with stock > 0
-            from app.models.inventory import InventoryItem
+            from src.app.models.inventory import InventoryItem
             query = query.join(InventoryItem).filter(
                 and_(
                     InventoryItem.current_stock > 0,
@@ -222,7 +222,7 @@ class ProductService:
     @staticmethod
     def get_with_inventory(db: Session, product_id: int, owner_id: int) -> Optional[Product]:
         """Get product with its linked inventory items."""
-        from app.models.inventory import InventoryItem
+        from src.app.models.inventory import InventoryItem
         
         product = ProductService.get_by_id(db, product_id, owner_id)
         if not product:
@@ -280,7 +280,7 @@ class ProductService:
         requested_size: Optional[str] = None
     ) -> List['InventoryItem']:
         """Get available inventory items for a product that can fulfill an order."""
-        from app.models.inventory import InventoryItem
+        from src.app.models.inventory import InventoryItem
         
         query = (
             db.query(InventoryItem)

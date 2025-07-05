@@ -5,11 +5,11 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.core.security import get_current_active_customer
-from app.models.customer import Customer
-from app.schemas.order import CustomerOrderCreate, OrderResponse
-from app.services.order_service import OrderService
+from src.app.db.session import get_db
+from src.app.core.security import get_current_active_customer
+from src.app.models.customer import Customer
+from src.app.schemas.order import CustomerOrderCreate, OrderResponse
+from src.app.services.order_service import OrderService
 
 router = APIRouter()
 

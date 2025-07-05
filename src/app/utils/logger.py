@@ -5,7 +5,7 @@ import logging
 import sys
 from typing import Optional
 
-from app.core.config import settings
+from src.app.core.config import settings
 
 
 def setup_logger(name: Optional[str] = None) -> logging.Logger:

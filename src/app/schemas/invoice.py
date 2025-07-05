@@ -4,7 +4,7 @@ Invoice and payment schemas for T-Beauty.
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, model_validator
-from app.models.invoice import InvoiceStatus, PaymentMethod
+from src.app.models.invoice import InvoiceStatus, PaymentMethod
 
 
 class InvoiceItemBase(BaseModel):

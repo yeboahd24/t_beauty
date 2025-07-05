@@ -5,15 +5,15 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.core.security import get_current_active_customer
-from app.models.customer import Customer
-from app.schemas.cart import (
+from src.app.db.session import get_db
+from src.app.core.security import get_current_active_customer
+from src.app.models.customer import Customer
+from src.app.schemas.cart import (
     CartItemResponse, CartResponse, CartSummary, AddToCartRequest, 
     CartItemUpdate, CartToOrderRequest, CheckoutResponse
 )
-from app.schemas.order import OrderResponse
-from app.services.cart_service import CartService
+from src.app.schemas.order import OrderResponse
+from src.app.services.cart_service import CartService
 
 router = APIRouter()
 

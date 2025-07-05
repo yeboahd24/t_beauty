@@ -9,16 +9,16 @@ from sqlalchemy import func, and_, or_, desc, asc
 import json
 from decimal import Decimal
 
-from app.models.analytics import (
+from src.app.models.analytics import (
     DashboardMetric, BusinessReport, CustomerAnalytics, ProductAnalytics,
     SalesAnalytics, InventoryAnalytics, ReportType, ReportPeriod
 )
-from app.models.order import Order, OrderItem
-from app.models.customer import Customer
-from app.models.product import Product
-from app.models.inventory import InventoryItem, StockMovement
-from app.models.invoice import Invoice
-from app.schemas.analytics import (
+from src.app.models.order import Order, OrderItem
+from src.app.models.customer import Customer
+from src.app.models.product import Product
+from src.app.models.inventory import InventoryItem, StockMovement
+from src.app.models.invoice import Invoice
+from src.app.schemas.analytics import (
     DashboardOverview, SalesTrends, CustomerInsights, InventoryInsights,
     FinancialInsights, ProductPerformance, BusinessReportCreate,
     SalesReport, InventoryReport, CustomerReport, FinancialReport
@@ -518,7 +518,7 @@ class AnalyticsService:
     
     def _get_verified_payments_amount(self, start_date: date, end_date: date) -> float:
         """Get total verified payments amount for a period."""
-        from app.models.invoice import Payment
+        from src.app.models.invoice import Payment
         result = self.db.query(func.sum(Payment.amount)).filter(
             and_(
                 Payment.payment_date >= start_date,
@@ -530,7 +530,7 @@ class AnalyticsService:
     
     def _get_unverified_payments_amount(self) -> float:
         """Get total unverified payments amount."""
-        from app.models.invoice import Payment
+        from src.app.models.invoice import Payment
         result = self.db.query(func.sum(Payment.amount)).filter(
             Payment.is_verified == False
         ).scalar()
@@ -538,7 +538,7 @@ class AnalyticsService:
     
     def _calculate_payment_verification_rate(self) -> float:
         """Calculate payment verification rate."""
-        from app.models.invoice import Payment
+        from src.app.models.invoice import Payment
         total_payments = self.db.query(func.count(Payment.id)).scalar()
         if total_payments == 0:
             return 100.0
@@ -645,7 +645,7 @@ class AnalyticsService:
     
     def _get_sales_by_payment_method(self, start_date: date, end_date: date) -> Dict[str, float]:
         """Get sales breakdown by payment method."""
-        from app.models.invoice import Payment
+        from src.app.models.invoice import Payment
         results = self.db.query(
             Payment.payment_method,
             func.sum(Payment.amount).label('amount')
@@ -1033,8 +1033,8 @@ class AnalyticsService:
     
     def _get_inventory_valuation(self) -> Dict[str, float]:
         """Get inventory valuation breakdown."""
-        from app.models.category import Category
-        from app.models.brand import Brand
+        from src.app.models.category import Category
+        from src.app.models.brand import Brand
         
         # Total inventory value
         total_value = self._calculate_total_inventory_value()
@@ -1213,7 +1213,7 @@ class AnalyticsService:
     
     def _get_payment_analytics(self) -> Dict[str, Any]:
         """Get payment analytics."""
-        from app.models.invoice import Payment
+        from src.app.models.invoice import Payment
         
         # Payment method breakdown
         payment_methods = self.db.query(
@@ -1345,7 +1345,7 @@ class AnalyticsService:
             month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
             
             # Inflows (payments received)
-            from app.models.invoice import Payment
+            from src.app.models.invoice import Payment
             inflows = self.db.query(func.sum(Payment.amount)).filter(
                 and_(
                     Payment.payment_date >= month_start,
@@ -1570,7 +1570,7 @@ class AnalyticsService:
     
     def _get_category_performance(self) -> List[Dict[str, Any]]:
         """Get category performance analysis."""
-        from app.models.category import Category
+        from src.app.models.category import Category
         
         results = self.db.query(
             Category.id,
@@ -1610,7 +1610,7 @@ class AnalyticsService:
     
     def _get_brand_performance(self) -> List[Dict[str, Any]]:
         """Get brand performance analysis."""
-        from app.models.brand import Brand
+        from src.app.models.brand import Brand
         
         results = self.db.query(
             Brand.id,
@@ -1859,7 +1859,7 @@ class AnalyticsService:
     
     def _get_payments_count_for_period(self, start_date: date, end_date: date) -> int:
         """Get payments count for a period."""
-        from app.models.invoice import Payment
+        from src.app.models.invoice import Payment
         return self.db.query(Payment).filter(
             and_(
                 Payment.payment_date >= start_date,

@@ -5,15 +5,15 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.core.security import get_current_active_customer
-from app.models.customer import Customer
-from app.schemas.product import ProductResponse, ProductSummary
-from app.schemas.brand import BrandResponse
-from app.schemas.category import CategoryResponse
-from app.services.product_service import ProductService
-from app.services.brand_service import BrandService
-from app.services.category_service import CategoryService
+from src.app.db.session import get_db
+from src.app.core.security import get_current_active_customer
+from src.app.models.customer import Customer
+from src.app.schemas.product import ProductResponse, ProductSummary
+from src.app.schemas.brand import BrandResponse
+from src.app.schemas.category import CategoryResponse
+from src.app.services.product_service import ProductService
+from src.app.services.brand_service import BrandService
+from src.app.services.category_service import CategoryService
 
 router = APIRouter()
 

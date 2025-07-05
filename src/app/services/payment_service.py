@@ -7,11 +7,11 @@ from sqlalchemy import and_, func, desc
 from datetime import datetime, timedelta
 import uuid
 
-from app.models.invoice import Payment, PaymentMethod, Invoice
-from app.models.customer import Customer
-from app.models.order import Order, OrderStatus, PaymentStatus
-from app.schemas.invoice import PaymentCreate, PaymentUpdate
-from app.services.invoice_service import InvoiceService
+from src.app.models.invoice import Payment, PaymentMethod, Invoice
+from src.app.models.customer import Customer
+from src.app.models.order import Order, OrderStatus, PaymentStatus
+from src.app.schemas.invoice import PaymentCreate, PaymentUpdate
+from src.app.services.invoice_service import InvoiceService
 
 
 class PaymentService:

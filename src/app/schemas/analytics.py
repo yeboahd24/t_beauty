@@ -4,7 +4,7 @@ Analytics and reporting schemas for T-Beauty.
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 from pydantic import BaseModel
-from app.models.analytics import ReportType, ReportPeriod
+from src.app.models.analytics import ReportType, ReportPeriod
 
 
 class DashboardMetricResponse(BaseModel):

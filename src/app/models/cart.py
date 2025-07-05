@@ -4,7 +4,7 @@ Shopping cart models for T-Beauty customer experience.
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.db.base import Base
+from src.app.db.base import Base
 
 
 class CartItem(Base):

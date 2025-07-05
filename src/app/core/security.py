@@ -9,11 +9,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.db.session import get_db
-from app.models.user import User
-from app.models.customer import Customer
-from app.schemas.auth import TokenData
+from src.app.core.config import settings
+from src.app.db.session import get_db
+from src.app.models.user import User
+from src.app.models.customer import Customer
+from src.app.schemas.auth import TokenData
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()

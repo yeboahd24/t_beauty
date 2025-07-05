@@ -6,10 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from app.core.config import settings
-from app.api.v1.api import api_router
-from app.db.session import engine
-from app.db.base import Base
+from src.app.core.config import settings
+from src.app.api.v1.api import api_router
+from src.app.db.session import engine
+from src.app.db.base import Base
 
 # Import all models to register them with SQLAlchemy
 import app.models  # noqa: F401

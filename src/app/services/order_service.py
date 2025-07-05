@@ -7,12 +7,12 @@ from sqlalchemy import and_, func, desc
 from datetime import datetime, timedelta
 import uuid
 
-from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus
-from app.models.customer import Customer
-from app.models.inventory import InventoryItem
-from app.schemas.order import OrderCreate, OrderUpdate, OrderItemCreate, CustomerOrderCreate, CustomerOrderItemCreate
-from app.services.inventory_service import InventoryService
-from app.schemas.inventory import StockMovementCreate
+from src.app.models.order import Order, OrderItem, OrderStatus, PaymentStatus
+from src.app.models.customer import Customer
+from src.app.models.inventory import InventoryItem
+from src.app.schemas.order import OrderCreate, OrderUpdate, OrderItemCreate, CustomerOrderCreate, CustomerOrderItemCreate
+from src.app.services.inventory_service import InventoryService
+from src.app.schemas.inventory import StockMovementCreate
 
 
 class OrderService:
@@ -273,7 +273,7 @@ class OrderService:
     @staticmethod
     def _create_order_item(db: Session, order_id: int, item_data: OrderItemCreate, owner_id: int) -> OrderItem:
         """Create an order item for a product and attempt automatic allocation."""
-        from app.services.product_service import ProductService
+        from src.app.services.product_service import ProductService
         
         # Get product
         product = ProductService.get_by_id(db, item_data.product_id, owner_id)
@@ -330,7 +330,7 @@ class OrderService:
     @staticmethod
     def _create_customer_order_item(db: Session, order_id: int, item_data: CustomerOrderItemCreate, owner_id: int) -> OrderItem:
         """Create an order item from customer order data using product_id."""
-        from app.models.product import Product
+        from src.app.models.product import Product
         
         # Get product (for customer orders, don't filter by owner since customers see all active products)
         product = (
@@ -627,7 +627,7 @@ class OrderService:
     @staticmethod
     def allocate_inventory(db: Session, order_id: int, owner_id: int) -> Order:
         """Allocate inventory for all items in an order."""
-        from app.services.product_service import ProductService
+        from src.app.services.product_service import ProductService
         
         order = OrderService.get_by_id(db, order_id, owner_id)
         if not order:

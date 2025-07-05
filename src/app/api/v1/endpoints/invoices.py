@@ -5,15 +5,15 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.schemas.invoice import (
+from src.app.db.session import get_db
+from src.app.schemas.invoice import (
     InvoiceCreate, InvoiceUpdate, InvoiceResponse, InvoiceListResponse, 
     InvoiceSummary, InvoiceStats
 )
-from app.services.invoice_service import InvoiceService
-from app.models.user import User
-from app.models.invoice import InvoiceStatus
-from app.core.security import get_current_active_user
+from src.app.services.invoice_service import InvoiceService
+from src.app.models.user import User
+from src.app.models.invoice import InvoiceStatus
+from src.app.core.security import get_current_active_user
 
 router = APIRouter()
 

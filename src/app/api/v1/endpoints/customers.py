@@ -2,16 +2,16 @@
 Customer management endpoints for T-Beauty.
 """
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.schemas.customer import (
+from src.app.db.session import get_db
+from src.app.schemas.customer import (
     CustomerCreate, CustomerUpdate, CustomerResponse, CustomerListResponse
 )
-from app.services.customer_service import CustomerService
-from app.models.user import User
-from app.core.security import get_current_active_user
+from src.app.services.customer_service import CustomerService
+from src.app.models.user import User
+from src.app.core.security import get_current_active_user
 
 router = APIRouter()
 
@@ -285,3 +285,124 @@ async def promote_to_vip(
             detail="Customer not found"
         )
     return customer
+
+
+@router.post("/bulk-import")
+async def bulk_import_customers(
+    csv_file: UploadFile = File(..., description="CSV file containing customer data"),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Start bulk import of customers from uploaded CSV file (async task)."""
+    import tempfile
+    import os
+    from src.app.tasks.customer_tasks import bulk_import_customers_task
+    
+    # Validate file type
+    if not csv_file.filename.endswith('.csv'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be a CSV file"
+        )
+    
+    # Save uploaded file temporarily
+    try:
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.csv') as temp_file:
+            content = await csv_file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        # Start background task
+        task = bulk_import_customers_task.delay(temp_file_path)
+        
+        return {
+            "message": "Bulk import started successfully",
+            "task_id": task.id,
+            "status": "PENDING",
+            "instructions": {
+                "check_status": f"GET /api/v1/customers/bulk-import/status/{task.id}",
+                "note": "Use the task_id to check import progress and results"
+            }
+        }
+        
+    except Exception as e:
+        # Clean up temporary file if it exists
+        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process uploaded file: {str(e)}"
+        )
+
+
+@router.get("/bulk-import/status/{task_id}")
+async def get_bulk_import_status(
+    task_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get the status of a bulk import task."""
+    from src.app.core.celery_app import celery_app
+    
+    try:
+        task = celery_app.AsyncResult(task_id)
+        
+        if task.state == 'PENDING':
+            response = {
+                "task_id": task_id,
+                "state": task.state,
+                "status": "Task is waiting to be processed",
+                "progress": {
+                    "current": 0,
+                    "total": 0,
+                    "percentage": 0
+                }
+            }
+        elif task.state == 'PROGRESS':
+            response = {
+                "task_id": task_id,
+                "state": task.state,
+                "status": task.info.get('status', 'Processing...'),
+                "progress": {
+                    "current": task.info.get('current', 0),
+                    "total": task.info.get('total', 0),
+                    "percentage": round((task.info.get('current', 0) / max(task.info.get('total', 1), 1)) * 100, 2),
+                    "imported": task.info.get('imported', 0),
+                    "skipped": task.info.get('skipped', 0),
+                    "errors": task.info.get('errors', 0)
+                }
+            }
+        elif task.state == 'SUCCESS':
+            result = task.result
+            response = {
+                "task_id": task_id,
+                "state": task.state,
+                "status": "Import completed successfully",
+                "result": {
+                    "message": result.get('message', ''),
+                    "imported_count": result.get('imported_count', 0),
+                    "skipped_count": result.get('skipped_count', 0),
+                    "errors": result.get('errors', []),
+                    "summary": {
+                        "total_processed": result.get('imported_count', 0) + result.get('skipped_count', 0),
+                        "successful_imports": result.get('imported_count', 0),
+                        "skipped_duplicates": result.get('skipped_count', 0),
+                        "error_count": len(result.get('errors', []))
+                    }
+                }
+            }
+        else:  # FAILURE
+            response = {
+                "task_id": task_id,
+                "state": task.state,
+                "status": "Import failed",
+                "error": str(task.info.get('error', 'Unknown error occurred'))
+            }
+        
+        return response
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get task status: {str(e)}"
+        )

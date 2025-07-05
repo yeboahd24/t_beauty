@@ -4,7 +4,7 @@ Order schemas for T-Beauty.
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
-from app.models.order import OrderStatus, PaymentStatus
+from src.app.models.order import OrderStatus, PaymentStatus
 from .customer import CustomerSummary
 from .inventory import InventoryItemSummary
 

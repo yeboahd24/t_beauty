@@ -5,9 +5,9 @@ from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, func
 from datetime import datetime
-from app.models.inventory import InventoryItem, StockMovement
-from app.models.product import Product
-from app.schemas.inventory import InventoryItemCreate, InventoryItemUpdate, StockMovementCreate
+from src.app.models.inventory import InventoryItem, StockMovement
+from src.app.models.product import Product
+from src.app.schemas.inventory import InventoryItemCreate, InventoryItemUpdate, StockMovementCreate
 
 
 class InventoryService:
@@ -194,7 +194,7 @@ class InventoryService:
         
         # Check if item has any pending orders or is referenced elsewhere
         # This is a safety check to prevent deletion of items that are still in use
-        from app.models.order import OrderItem
+        from src.app.models.order import OrderItem
         pending_orders = db.query(OrderItem).filter(
             OrderItem.inventory_item_id == item_id
         ).first()
@@ -329,7 +329,7 @@ class InventoryService:
     @staticmethod
     def get_categories(db: Session, owner_id: int = None) -> List[str]:
         """Get all unique categories from inventory items through products."""
-        from app.models.category import Category
+        from src.app.models.category import Category
         query = (
             db.query(Category.name)
             .join(Product)
@@ -345,7 +345,7 @@ class InventoryService:
     @staticmethod
     def get_brands(db: Session, owner_id: int = None) -> List[str]:
         """Get all unique brands from inventory items through products."""
-        from app.models.brand import Brand
+        from src.app.models.brand import Brand
         query = (
             db.query(Brand.name)
             .join(Product)
@@ -361,7 +361,7 @@ class InventoryService:
     @staticmethod
     def get_top_selling_items(db: Session, owner_id: int, limit: int = 5) -> List[InventoryItem]:
         """Get top selling inventory items based on order history."""
-        from app.models.order import OrderItem
+        from src.app.models.order import OrderItem
         
         # Query to get items with highest order quantities
         top_items_query = (

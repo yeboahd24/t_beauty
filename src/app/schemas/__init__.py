@@ -1,24 +1,24 @@
 """
 Pydantic schemas for T-Beauty Business Management System.
 """
-from app.schemas.auth import Token, TokenData, UserLogin
-from app.schemas.user import UserCreate, UserResponse, UserUpdate
-from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse
-from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerResponse, CustomerListResponse
-from app.schemas.inventory import (
+from src.app.schemas.auth import Token, TokenData, UserLogin
+from src.app.schemas.user import UserCreate, UserResponse, UserUpdate
+from src.app.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse
+from src.app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerResponse, CustomerListResponse
+from src.app.schemas.inventory import (
     InventoryItemCreate, InventoryItemUpdate, InventoryItemResponse, InventoryListResponse,
     StockMovementCreate, StockMovementResponse, LowStockAlert, InventoryStats
 )
-from app.schemas.order import (
+from src.app.schemas.order import (
     OrderCreate, OrderUpdate, OrderResponse, OrderListResponse, OrderStatusUpdate,
     PaymentUpdate, OrderStats, OrderItemCreate, OrderItemResponse
 )
-from app.schemas.invoice import (
+from src.app.schemas.invoice import (
     InvoiceCreate, InvoiceUpdate, InvoiceResponse, InvoiceListResponse,
     PaymentCreate, PaymentResponse, PaymentListResponse, InvoiceStats, PaymentStats,
     InvoiceItemCreate, InvoiceItemResponse
 )
-from app.schemas.cart import (
+from src.app.schemas.cart import (
     CartItemCreate, CartItemUpdate, CartItemResponse, CartResponse, CartSummary,
     AddToCartRequest, CartToOrderRequest, CheckoutResponse
 )
