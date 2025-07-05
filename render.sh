@@ -58,49 +58,48 @@ else
   fi
 fi
 
-# Create logs directory
-mkdir -p logs
+# Function to cleanup on exit
+cleanup() {
+    echo ""
+    echo "🛑 Shutting down services..."
+    if [[ ! -z "$CELERY_PID" ]]; then
+        kill $CELERY_PID 2>/dev/null
+        echo "   Celery worker stopped"
+    fi
+    echo "✅ Services stopped"
+    exit 0
+}
 
-# Start Celery worker as daemon
-echo "📋 Starting Celery worker as daemon..."
-celery -A celery_app worker \
-  --loglevel=info \
-  --concurrency=4 \
-  --detach \
-  --pidfile=logs/celery.pid \
-  --logfile=logs/celery.log
+# Set trap for cleanup
+trap cleanup SIGINT SIGTERM
 
-if [[ $? -eq 0 ]]; then
-  CELERY_PID=$(cat logs/celery.pid 2>/dev/null)
-  echo "✅ Celery worker started as daemon (PID: $CELERY_PID)"
-else
-  echo "❌ Failed to start Celery worker"
-  exit 1
-fi
+# Start Celery worker in background (not daemon)
+echo "📋 Starting Celery worker..."
+celery -A celery_app worker --loglevel=info --concurrency=4 &
+CELERY_PID=$!
+echo "✅ Celery worker started (PID: $CELERY_PID)"
 
-# Start FastAPI as daemon
-echo "🌐 Starting FastAPI application as daemon..."
-nohup python main.py >logs/fastapi.log 2>&1 &
-FASTAPI_PID=$!
-echo $FASTAPI_PID >logs/fastapi.pid
-echo "✅ FastAPI started as daemon (PID: $FASTAPI_PID)"
+# Wait a moment for Celery to start
+sleep 3
 
+# Start FastAPI application in foreground
+echo "🌐 Starting FastAPI application..."
 echo ""
 echo "🎉 All services started successfully!"
 echo ""
 echo "📊 Service Information:"
 echo "   FastAPI:     http://localhost:8000"
 echo "   API Docs:    http://localhost:8000/docs"
+echo "   Celery PID:  $CELERY_PID"
 echo ""
-echo "📝 Process Management:"
-echo "   Celery PID:  $CELERY_PID (logs/celery.pid)"
-echo "   FastAPI PID: $FASTAPI_PID (logs/fastapi.pid)"
+echo "🧪 Test bulk import:"
+echo "   curl -X POST \"http://localhost:8000/api/v1/customers/bulk-import\" \\"
+echo "     -H \"Authorization: Bearer YOUR_TOKEN\" \\"
+echo "     -F \"csv_file=@customers.csv\""
 echo ""
-echo "📋 Log Files:"
-echo "   Celery:  logs/celery.log"
-echo "   FastAPI: logs/fastapi.log"
+echo "✅ Services running - FastAPI will keep the process alive"
 echo ""
-echo "📊 Monitor logs with:"
-echo "   tail -f logs/celery.log"
-echo "   tail -f logs/fastapi.log"
+
+# Start FastAPI in foreground (this keeps the process alive)
+python main.py
 
