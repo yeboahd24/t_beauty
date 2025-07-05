@@ -10,14 +10,53 @@ export LD_LIBRARY_PATH=""
 # Set PYTHONPATH to include current directory
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
-# Check if Redis is running
-echo "🔍 Checking Redis connection..."
-if ! redis-cli ping > /dev/null 2>&1; then
-    echo "❌ Redis is not running!"
-    echo "Please ensure Redis service is available"
-    exit 1
+# Load environment variables from .env file if it exists
+if [[ -f ".env" ]]; then
+    echo "📋 Loading environment variables from .env file..."
+    export $(grep -v '^#' .env | xargs)
+    echo "✅ Environment variables loaded"
+else
+    echo "⚠️  No .env file found, using default/system environment variables"
 fi
-echo "✅ Redis is running"
+
+# Show current Redis URL (masked for security)
+if [[ ! -z "$REDIS_URL" ]]; then
+    MASKED_REDIS=$(echo $REDIS_URL | sed 's/:[^@]*@/:***@/g')
+    echo "🔗 Using Redis: $MASKED_REDIS"
+fi
+
+# Check Redis connection
+echo "🔍 Checking Redis connection..."
+if [[ ! -z "$REDIS_URL" ]]; then
+    # Extract host and port from Redis URL for testing
+    REDIS_HOST=$(echo $REDIS_URL | sed -n 's/.*:\/\/\([^:@]*\)[@:].*/\1/p')
+    REDIS_PORT=$(echo $REDIS_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+    
+    if [[ -z "$REDIS_HOST" ]]; then
+        REDIS_HOST="localhost"
+    fi
+    if [[ -z "$REDIS_PORT" ]]; then
+        REDIS_PORT="6379"
+    fi
+    
+    # Test Redis connection
+    if redis-cli -h $REDIS_HOST -p $REDIS_PORT ping > /dev/null 2>&1; then
+        echo "✅ Redis is accessible at $REDIS_HOST:$REDIS_PORT"
+    else
+        echo "❌ Cannot connect to Redis at $REDIS_HOST:$REDIS_PORT"
+        echo "Please check your REDIS_URL in .env file or ensure Redis service is running"
+        exit 1
+    fi
+else
+    # Fallback to default Redis check
+    if redis-cli ping > /dev/null 2>&1; then
+        echo "✅ Redis is running (default localhost:6379)"
+    else
+        echo "❌ Redis is not running!"
+        echo "Please ensure Redis service is available or set REDIS_URL in .env file"
+        exit 1
+    fi
+fi
 
 # Create logs directory
 mkdir -p logs
